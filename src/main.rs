@@ -5,6 +5,7 @@ use ggez::nalgebra::{Point2};
 use ggez::timer;
 use rand::{random};
 use rpg_battle::palette;
+use rpg_battle::hud::action_timeline::{self, ActionTimeline};
 use rpg_battle::hud::resource_guage::{self, ResourceGuage};
 use rpg_battle::hud::balance_guage::{self, BalanceGuage};
 
@@ -15,6 +16,7 @@ const PLAYER_MAX_FATIGUE: f32 = 100.0;
 struct MainState {
     font: graphics::Font,
     pos_x: f32,
+    timeline: ActionTimeline,
     player_fatigue: ResourceGuage,
     player_balance: BalanceGuage,
     randomise_timer: f32
@@ -34,6 +36,7 @@ impl MainState {
 
         let s = MainState {
             font: font,
+            timeline: ActionTimeline::new(),
             player_fatigue: ResourceGuage::new(PLAYER_MAX_FATIGUE, 0.0, palette::GREEN),
             player_balance: BalanceGuage::new(0.0),
             pos_x: 0.0,
@@ -51,6 +54,7 @@ impl event::EventHandler for MainState {
 
             self.randomise_timer += delta;
 
+            action_timeline::update(&mut self.timeline, delta);
             balance_guage::update(&mut self.player_balance, delta);
             resource_guage::update(&mut self.player_fatigue, delta);
 
@@ -81,6 +85,10 @@ impl event::EventHandler for MainState {
         graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 100.0),))?;
 
         graphics::draw(ctx, &player_balance_guage, (Point2::new(100.0, 130.0),))?;
+
+        let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
+
+        graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 300.0),))?;
 
         graphics::present(ctx)?;
         Ok(())
