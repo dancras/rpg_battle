@@ -9,13 +9,15 @@ use rpg_battle::hud::resource_guage::{self, ResourceGuage};
 use rpg_battle::hud::balance_guage::{self, BalanceGuage};
 
 const DESIRED_FPS: u32 = 60;
+const RANDOMISE_INTERVAL: f32 = 2.0;
+const PLAYER_MAX_FATIGUE: f32 = 100.0;
 
 struct MainState {
     font: graphics::Font,
     pos_x: f32,
     player_fatigue: ResourceGuage,
     player_balance: BalanceGuage,
-    balance_timer: f32
+    randomise_timer: f32
 }
 
 impl MainState {
@@ -32,14 +34,10 @@ impl MainState {
 
         let s = MainState {
             font: font,
-            player_fatigue: ResourceGuage {
-                color: palette::GREEN,
-                max_value: 100.0,
-                current_value: 0.0
-            },
+            player_fatigue: ResourceGuage::new(PLAYER_MAX_FATIGUE, 0.0, palette::GREEN),
             player_balance: BalanceGuage::new(0.0),
             pos_x: 0.0,
-            balance_timer: 0.0
+            randomise_timer: 0.0
         };
         Ok(s)
     }
@@ -51,17 +49,18 @@ impl event::EventHandler for MainState {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let delta = 1.0 / (DESIRED_FPS as f32);
 
-            self.balance_timer += delta;
+            self.randomise_timer += delta;
 
             balance_guage::update(&mut self.player_balance, delta);
+            resource_guage::update(&mut self.player_fatigue, delta);
 
-            if self.balance_timer > 3.0 {
-                self.balance_timer = self.balance_timer % 3.0;
+            if self.randomise_timer > RANDOMISE_INTERVAL {
+                self.randomise_timer = self.randomise_timer % RANDOMISE_INTERVAL;
                 self.player_balance.update(random::<f32>());
+                self.player_fatigue.update(random::<f32>() * PLAYER_MAX_FATIGUE);
             }
 
             self.pos_x = self.pos_x % 800.0 + 1.0;
-            self.player_fatigue.current_value = self.player_fatigue.current_value % self.player_fatigue.max_value + 1.0;
         }
 
         Ok(())
