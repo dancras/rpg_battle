@@ -1,4 +1,3 @@
-use ezing;
 use ggez::{Context, GameResult};
 use ggez::graphics::{self, Color, Mesh, MeshBuilder};
 use ggez::nalgebra::{Point2};
