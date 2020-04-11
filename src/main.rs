@@ -34,7 +34,7 @@ impl MainState {
             Err(e) => panic!("{}", e)
         };
 
-        let s = MainState {
+        let mut s = MainState {
             font: font,
             timeline: ActionTimeline::new(),
             player_fatigue: ResourceGuage::new(PLAYER_MAX_FATIGUE, 0.0, palette::GREEN),
@@ -42,6 +42,10 @@ impl MainState {
             pos_x: 0.0,
             randomise_timer: 0.0
         };
+
+        s.timeline.add_subject(graphics::BLACK, 200.0);
+        s.timeline.add_subject(palette::RED, 400.0);
+
         Ok(s)
     }
 }
