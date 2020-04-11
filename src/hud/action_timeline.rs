@@ -47,7 +47,7 @@ impl ActionTimeline {
     }
 
     pub fn update_subject(&mut self, subject_id: i32, new_time: f32) {
-        self.subject_times.insert(self.next_subject_id, new_time);
+        self.subject_times.insert(subject_id, new_time);
         self.ordered_subjects.retain(|&id| id != subject_id);
 
         let mut insert_position = 0;
@@ -60,7 +60,7 @@ impl ActionTimeline {
             insert_position += 1;
         }
 
-        self.ordered_subjects.insert(insert_position, self.next_subject_id);
+        self.ordered_subjects.insert(insert_position, subject_id);
     }
 
     pub fn update(&mut self, time: f32) {

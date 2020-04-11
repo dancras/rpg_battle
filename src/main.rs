@@ -12,9 +12,11 @@ use rpg_battle::hud::balance_guage::{self, BalanceGuage};
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 const PLAYER_MAX_FATIGUE: i32 = 100;
+const PLAYER_FIRST_ACTION: f32 = 50.0;
 const ENEMY_MAX_HP: i32 = 50;
 const ENEMY_FIRST_ACTION: f32 = 100.0;
 const ACTION_POINTS_PER_SECOND: f32 = 60.0;
+const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 
 struct MainState {
@@ -25,6 +27,8 @@ struct MainState {
     player: Player,
     player_fatigue_guage: ResourceGuage,
     player_balance: BalanceGuage,
+    player_attack_pending: bool,
+    player_timeline_handle: i32,
     randomise_timer: f32,
     enemy: Enemy,
     enemy_hp_guage: ResourceGuage,
@@ -33,7 +37,8 @@ struct MainState {
 
 struct Player {
     max_fatigue: i32,
-    current_fatigue: i32
+    current_fatigue: i32,
+    next_action_time: f32
 }
 
 struct Enemy {
@@ -42,11 +47,6 @@ struct Enemy {
     next_action_time: f32
 }
 
-// TODO implement a basic battle between player and computer with
-// a single move "attack"
-// STEP start with above, enemy that kills the player
-// player action time stat
-// input waiting when action time reaches now
 impl MainState {
     fn new(ctx: &mut ggez::Context) -> ggez::GameResult<MainState> {
 
@@ -61,7 +61,8 @@ impl MainState {
 
         let player = Player {
             max_fatigue: PLAYER_MAX_FATIGUE,
-            current_fatigue: PLAYER_MAX_FATIGUE
+            current_fatigue: PLAYER_MAX_FATIGUE,
+            next_action_time: PLAYER_FIRST_ACTION
         };
 
         let enemy = Enemy {
@@ -77,6 +78,11 @@ impl MainState {
             enemy.next_action_time
         );
 
+        let player_timeline_handle = timeline.add_subject(
+            palette::GREEN,
+            player.next_action_time
+        );
+
         let s = MainState {
             font: font,
             action_time: 0.0,
@@ -88,6 +94,8 @@ impl MainState {
             ),
             player_balance: BalanceGuage::new(0.0),
             player: player,
+            player_attack_pending: false,
+            player_timeline_handle: player_timeline_handle,
             pos_x: 0.0,
             randomise_timer: 0.0,
             enemy_hp_guage: ResourceGuage::new(
@@ -104,6 +112,18 @@ impl MainState {
 }
 
 impl event::EventHandler for MainState {
+
+    fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
+        if character == '1' && self.player_attack_pending {
+            self.player_attack_pending = false;
+            self.player.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+            self.enemy.current_hp -= ATTACK_DAMAGE;
+
+            self.enemy_hp_guage.update(self.enemy.current_hp as f32);
+            self.timeline.update_subject(self.player_timeline_handle, self.player.next_action_time);
+        }
+    }
+
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
@@ -116,11 +136,16 @@ impl event::EventHandler for MainState {
 
             if self.action_time > self.enemy.next_action_time {
                 // Enemy attack
-                self.player.current_fatigue -= 10;
+                self.player.current_fatigue -= ATTACK_DAMAGE;
                 self.enemy.next_action_time = self.action_time + ATTACK_ACTION_TIME;
 
                 self.player_fatigue_guage.update(self.player.current_fatigue as f32);
                 self.timeline.update_subject(self.enemy_timeline_handle, self.enemy.next_action_time);
+            }
+
+            if self.action_time > self.player.next_action_time {
+                // Player attack
+                self.player_attack_pending = true;
             }
 
             balance_guage::update(&mut self.player_balance, delta);
