@@ -177,15 +177,30 @@ impl event::EventHandler for MainState {
 
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
-        graphics::draw(ctx, &enemy_hp_guage, (Point2::new(400.0, 100.0),))?;
+        graphics::draw(ctx, &enemy_hp_guage, (Point2::new(600.0, 50.0),))?;
 
-        graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 100.0),))?;
+        graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 500.0),))?;
 
-        graphics::draw(ctx, &player_balance_guage, (Point2::new(100.0, 130.0),))?;
+        graphics::draw(ctx, &player_balance_guage, (Point2::new(100.0, 530.0),))?;
+
+        if self.player_attack_pending {
+            let player_highlight = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::stroke(2.0),
+                graphics::Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    w: 120.0,
+                    h: 70.0
+                },
+                palette::YELLOW
+            )?;
+            graphics::draw(ctx, &player_highlight, (Point2::new(90.0, 490.0),))?;
+        }
 
         let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
 
-        graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 300.0),))?;
+        graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 400.0),))?;
 
         graphics::present(ctx)?;
         Ok(())
