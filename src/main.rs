@@ -33,6 +33,7 @@ struct MainState {
     randomise_timer: f32,
     enemy: Enemy,
     enemy_hp_guage: ResourceGuage,
+    enemy_balance_guage: BalanceGuage,
     enemy_timeline_handle: i32
 }
 
@@ -46,6 +47,7 @@ struct Player {
 struct Enemy {
     max_hp: i32,
     current_hp: i32,
+    current_balance: f32,
     next_action_time: f32
 }
 
@@ -93,6 +95,7 @@ impl MainState {
         let enemy = Enemy {
             max_hp: ENEMY_MAX_HP,
             current_hp: ENEMY_MAX_HP,
+            current_balance: calculate_balance(),
             next_action_time: ENEMY_FIRST_ACTION
         };
 
@@ -128,6 +131,7 @@ impl MainState {
                 enemy.current_hp as f32,
                 palette::RED
             ),
+            enemy_balance_guage: BalanceGuage::new(enemy.current_balance),
             enemy_timeline_handle: enemy_timeline_handle,
             enemy: enemy,
         };
@@ -167,9 +171,13 @@ impl event::EventHandler for MainState {
 
             if self.action_time > self.enemy.next_action_time {
                 // Enemy attack
-                self.player.current_fatigue -= ATTACK_DAMAGE;
+                let dmg = calculate_balance_dmg(ATTACK_DAMAGE, self.enemy.current_balance);
+                println!("enemy damage dealt {}", dmg);
+                self.player.current_fatigue -= dmg;
+                self.enemy.current_balance = calculate_balance();
                 self.enemy.next_action_time = self.action_time + ATTACK_ACTION_TIME;
 
+                self.enemy_balance_guage.update(self.enemy.current_balance);
                 self.player_fatigue_guage.update(self.player.current_fatigue as f32);
                 self.timeline.update_subject(self.enemy_timeline_handle, self.enemy.next_action_time);
             }
@@ -180,6 +188,7 @@ impl event::EventHandler for MainState {
             }
 
             balance_guage::update(&mut self.player_balance_guage, delta);
+            balance_guage::update(&mut self.enemy_balance_guage, delta);
             resource_guage::update(&mut self.player_fatigue_guage, delta);
             resource_guage::update(&mut self.enemy_hp_guage, delta);
 
@@ -204,10 +213,12 @@ impl event::EventHandler for MainState {
         let player_balance_guage = balance_guage::create_mesh(ctx, &self.player_balance_guage)?;
 
         let enemy_hp_guage = resource_guage::create_mesh(ctx, &self.enemy_hp_guage)?;
+        let enemy_balance_guage = balance_guage::create_mesh(ctx, &self.enemy_balance_guage)?;
 
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
         graphics::draw(ctx, &enemy_hp_guage, (Point2::new(600.0, 50.0),))?;
+        graphics::draw(ctx, &enemy_balance_guage, (Point2::new(600.0, 80.0),))?;
 
         graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 500.0),))?;
 
