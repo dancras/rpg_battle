@@ -28,15 +28,13 @@ impl ActionTimeline {
     pub fn add_subject(&mut self, color: Color, time: f32) -> i32 {
         self.next_subject_id += 1;
 
-        let subject_time = self.time + time;
-
         self.subject_colors.insert(self.next_subject_id, color);
-        self.subject_times.insert(self.next_subject_id, subject_time);
+        self.subject_times.insert(self.next_subject_id, time);
 
         let mut insert_position = 0;
 
         for id in &self.ordered_subjects {
-            if self.subject_times[id] < subject_time {
+            if self.subject_times[id] < time {
                 break;
             }
 
@@ -46,6 +44,27 @@ impl ActionTimeline {
         self.ordered_subjects.insert(insert_position, self.next_subject_id);
 
         self.next_subject_id
+    }
+
+    pub fn update_subject(&mut self, subject_id: i32, new_time: f32) {
+        self.subject_times.insert(self.next_subject_id, new_time);
+        self.ordered_subjects.retain(|&id| id != subject_id);
+
+        let mut insert_position = 0;
+
+        for id in &self.ordered_subjects {
+            if self.subject_times[id] < new_time {
+                break;
+            }
+
+            insert_position += 1;
+        }
+
+        self.ordered_subjects.insert(insert_position, self.next_subject_id);
+    }
+
+    pub fn update(&mut self, time: f32) {
+        self.time = time;
     }
 }
 
