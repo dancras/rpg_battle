@@ -22,7 +22,6 @@ const ATTACK_FATIGUE_COST: i32 = 5;
 
 struct MainState {
     font: graphics::Font,
-    pos_x: f32,
     action_time: f32,
     timeline: ActionTimeline,
     player: Player,
@@ -124,7 +123,6 @@ impl MainState {
             player: player,
             player_attack_pending: false,
             player_timeline_handle: player_timeline_handle,
-            pos_x: 0.0,
             randomise_timer: 0.0,
             enemy_hp_guage: ResourceGuage::new(
                 enemy.max_hp as f32,
@@ -195,8 +193,6 @@ impl event::EventHandler for MainState {
             if self.randomise_timer > RANDOMISE_INTERVAL {
                 self.randomise_timer = self.randomise_timer % RANDOMISE_INTERVAL;
             }
-
-            self.pos_x = self.pos_x % 800.0 + 1.0;
         }
 
         Ok(())
