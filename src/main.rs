@@ -20,6 +20,11 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
+// TODO multiple enemies
+//  - ability to select target enemy
+//  - hover enemy highlights position in action timeline
+// TODO multiple player characters
+//  - queue up turns if they are both pending
 struct MainState {
     font: graphics::Font,
     action_time: f32,
@@ -30,10 +35,7 @@ struct MainState {
     player_attack_pending: bool,
     player_timeline_handle: i32,
     randomise_timer: f32,
-    enemy: Enemy,
-    enemy_hp_guage: ResourceGuage,
-    enemy_balance_guage: BalanceGuage,
-    enemy_timeline_handle: i32
+    enemies: Vec<EnemyInBattle>
 }
 
 struct Player {
@@ -48,6 +50,31 @@ struct Enemy {
     current_hp: i32,
     current_balance: f32,
     next_action_time: f32
+}
+
+struct EnemyInBattle {
+    stats: Enemy,
+    hp_guage: ResourceGuage,
+    balance_guage: BalanceGuage,
+    timeline_handle: i32
+}
+
+impl EnemyInBattle {
+    fn new(enemy: Enemy, timeline: &mut ActionTimeline) -> Self {
+        EnemyInBattle {
+            hp_guage: ResourceGuage::new(
+                enemy.max_hp as f32,
+                enemy.current_hp as f32,
+                palette::RED
+            ),
+            balance_guage: BalanceGuage::new(enemy.current_balance),
+            timeline_handle: timeline.add_subject(
+                palette::RED,
+                enemy.next_action_time
+            ),
+            stats: enemy
+        }
+    }
 }
 
 fn calculate_balance() -> f32 {
@@ -91,19 +118,7 @@ impl MainState {
             next_action_time: PLAYER_FIRST_ACTION
         };
 
-        let enemy = Enemy {
-            max_hp: ENEMY_MAX_HP,
-            current_hp: ENEMY_MAX_HP,
-            current_balance: calculate_balance(),
-            next_action_time: ENEMY_FIRST_ACTION
-        };
-
         let mut timeline = ActionTimeline::new();
-
-        let enemy_timeline_handle = timeline.add_subject(
-            palette::RED,
-            enemy.next_action_time
-        );
 
         let player_timeline_handle = timeline.add_subject(
             palette::GREEN,
@@ -113,7 +128,6 @@ impl MainState {
         let s = MainState {
             font: font,
             action_time: 0.0,
-            timeline: timeline,
             player_fatigue_guage: ResourceGuage::new(
                 player.max_fatigue as f32,
                 player.current_fatigue as f32,
@@ -124,14 +138,27 @@ impl MainState {
             player_attack_pending: false,
             player_timeline_handle: player_timeline_handle,
             randomise_timer: 0.0,
-            enemy_hp_guage: ResourceGuage::new(
-                enemy.max_hp as f32,
-                enemy.current_hp as f32,
-                palette::RED
-            ),
-            enemy_balance_guage: BalanceGuage::new(enemy.current_balance),
-            enemy_timeline_handle: enemy_timeline_handle,
-            enemy: enemy,
+            enemies: vec![
+                EnemyInBattle::new(
+                    Enemy {
+                        max_hp: ENEMY_MAX_HP,
+                        current_hp: ENEMY_MAX_HP,
+                        current_balance: calculate_balance(),
+                        next_action_time: ENEMY_FIRST_ACTION
+                    },
+                    &mut timeline
+                ),
+                EnemyInBattle::new(
+                    Enemy {
+                        max_hp: ENEMY_MAX_HP,
+                        current_hp: ENEMY_MAX_HP,
+                        current_balance: calculate_balance(),
+                        next_action_time: ENEMY_FIRST_ACTION
+                    },
+                    &mut timeline
+                )
+            ],
+            timeline: timeline
         };
 
         Ok(s)
@@ -146,13 +173,14 @@ impl event::EventHandler for MainState {
             self.player.next_action_time = self.action_time + ATTACK_ACTION_TIME;
             let dmg = calculate_balance_dmg(ATTACK_DAMAGE, self.player.current_balance);
             println!("damage dealt {}", dmg);
-            self.enemy.current_hp -= dmg;
+            let enemy = &mut self.enemies[0];
+            enemy.stats.current_hp -= dmg;
             self.player.current_fatigue -= ATTACK_FATIGUE_COST;
             self.player.current_balance = calculate_balance();
 
             self.player_balance_guage.update(self.player.current_balance);
             self.player_fatigue_guage.update(self.player.current_fatigue as f32);
-            self.enemy_hp_guage.update(self.enemy.current_hp as f32);
+            enemy.hp_guage.update(enemy.stats.current_hp as f32);
             self.timeline.update_subject(self.player_timeline_handle, self.player.next_action_time);
         }
     }
@@ -167,17 +195,19 @@ impl event::EventHandler for MainState {
             self.action_time += ACTION_POINTS_PER_SECOND * delta;
             self.timeline.update(self.action_time);
 
-            if self.action_time > self.enemy.next_action_time {
-                // Enemy attack
-                let dmg = calculate_balance_dmg(ATTACK_DAMAGE, self.enemy.current_balance);
-                println!("enemy damage dealt {}", dmg);
-                self.player.current_fatigue -= dmg;
-                self.enemy.current_balance = calculate_balance();
-                self.enemy.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+            for enemy in &mut self.enemies {
+                if self.action_time > enemy.stats.next_action_time {
+                    // Enemy attack
+                    let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
+                    println!("enemy damage dealt {}", dmg);
+                    self.player.current_fatigue -= dmg;
+                    enemy.stats.current_balance = calculate_balance();
+                    enemy.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
 
-                self.enemy_balance_guage.update(self.enemy.current_balance);
-                self.player_fatigue_guage.update(self.player.current_fatigue as f32);
-                self.timeline.update_subject(self.enemy_timeline_handle, self.enemy.next_action_time);
+                    enemy.balance_guage.update(enemy.stats.current_balance);
+                    self.player_fatigue_guage.update(self.player.current_fatigue as f32);
+                    self.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
+                }
             }
 
             if self.action_time > self.player.next_action_time {
@@ -186,9 +216,12 @@ impl event::EventHandler for MainState {
             }
 
             balance_guage::update(&mut self.player_balance_guage, delta);
-            balance_guage::update(&mut self.enemy_balance_guage, delta);
             resource_guage::update(&mut self.player_fatigue_guage, delta);
-            resource_guage::update(&mut self.enemy_hp_guage, delta);
+
+            for enemy in &mut self.enemies {
+                balance_guage::update(&mut enemy.balance_guage, delta);
+                resource_guage::update(&mut enemy.hp_guage, delta);
+            }
 
             if self.randomise_timer > RANDOMISE_INTERVAL {
                 self.randomise_timer = self.randomise_timer % RANDOMISE_INTERVAL;
@@ -208,13 +241,16 @@ impl event::EventHandler for MainState {
         let player_fatigue_guage = resource_guage::create_mesh(ctx, &self.player_fatigue_guage)?;
         let player_balance_guage = balance_guage::create_mesh(ctx, &self.player_balance_guage)?;
 
-        let enemy_hp_guage = resource_guage::create_mesh(ctx, &self.enemy_hp_guage)?;
-        let enemy_balance_guage = balance_guage::create_mesh(ctx, &self.enemy_balance_guage)?;
-
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
-        graphics::draw(ctx, &enemy_hp_guage, (Point2::new(600.0, 50.0),))?;
-        graphics::draw(ctx, &enemy_balance_guage, (Point2::new(600.0, 80.0),))?;
+        let mut enemy_display_offset = 0.0;
+        for enemy in &self.enemies {
+            let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage)?;
+            let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage)?;
+            graphics::draw(ctx, &enemy_hp_guage, (Point2::new(600.0 - enemy_display_offset, 50.0),))?;
+            graphics::draw(ctx, &enemy_balance_guage, (Point2::new(600.0 - enemy_display_offset, 80.0),))?;
+            enemy_display_offset += 140.0;
+        }
 
         graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 500.0),))?;
 
