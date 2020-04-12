@@ -1,7 +1,7 @@
 use ggez;
 use ggez::event;
 use ggez::graphics;
-use ggez::input::mouse::{self, MouseButton};
+use ggez::input::mouse::{MouseButton};
 use ggez::nalgebra::{Point2};
 use ggez::timer;
 use rand::{random};
@@ -21,9 +21,6 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
-// TODO multiple enemies
-//  - ability to select target enemy
-//  - hover enemy highlights position in action timeline
 // TODO multiple player characters
 //  - queue up turns if they are both pending
 struct MainState {
@@ -175,7 +172,6 @@ impl event::EventHandler for MainState {
             self.player_attack_pending = false;
             self.player.next_action_time = self.action_time + ATTACK_ACTION_TIME;
             let dmg = calculate_balance_dmg(ATTACK_DAMAGE, self.player.current_balance);
-            println!("damage dealt {}", dmg);
             let enemy = &mut self.enemies[self.target_enemy];
             enemy.stats.current_hp -= dmg;
             self.player.current_fatigue -= ATTACK_FATIGUE_COST;
@@ -200,6 +196,25 @@ impl event::EventHandler for MainState {
         }
     }
 
+    fn mouse_motion_event(
+        &mut self,
+        _ctx: &mut ggez::Context,
+        x: f32,
+        y: f32,
+        _dx: f32,
+        _dy: f32
+    ) {
+        self.timeline.highlighted_subject = None;
+
+        if y < 110.0 {
+            if x > 600.0 {
+                self.timeline.highlighted_subject = Some(self.enemies[0].timeline_handle);
+            } else if x > 460.0 {
+                self.timeline.highlighted_subject = Some(self.enemies[1].timeline_handle);
+            }
+        }
+    }
+
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
@@ -214,7 +229,6 @@ impl event::EventHandler for MainState {
                 if self.action_time > enemy.stats.next_action_time {
                     // Enemy attack
                     let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
-                    println!("enemy damage dealt {}", dmg);
                     self.player.current_fatigue -= dmg;
                     enemy.stats.current_balance = calculate_balance();
                     enemy.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;

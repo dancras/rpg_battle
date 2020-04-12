@@ -10,7 +10,8 @@ pub struct ActionTimeline {
     time: f32,
     subject_colors: HashMap<i32, Color>,
     subject_times: HashMap<i32, f32>,
-    ordered_subjects: Vec<i32>
+    ordered_subjects: Vec<i32>,
+    pub highlighted_subject: Option<i32>
 }
 
 impl ActionTimeline {
@@ -20,7 +21,8 @@ impl ActionTimeline {
             time: 0.0,
             subject_colors: HashMap::new(),
             subject_times: HashMap::new(),
-            ordered_subjects: Vec::new()
+            ordered_subjects: Vec::new(),
+            highlighted_subject: None
         }
     }
 
@@ -130,7 +132,7 @@ pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<
             Point2::new(subject_position, -18.0 * current_stack as f32),
             8.0,
             0.5,
-            viewmodel.subject_colors[id]
+            if viewmodel.highlighted_subject == Some(*id) { graphics::WHITE } else { viewmodel.subject_colors[id] }
         );
     }
     
