@@ -1,6 +1,7 @@
 use ggez;
 use ggez::event;
 use ggez::graphics;
+use ggez::input::mouse::{self, MouseButton};
 use ggez::nalgebra::{Point2};
 use ggez::timer;
 use rand::{random};
@@ -35,7 +36,8 @@ struct MainState {
     player_attack_pending: bool,
     player_timeline_handle: i32,
     randomise_timer: f32,
-    enemies: Vec<EnemyInBattle>
+    enemies: Vec<EnemyInBattle>,
+    target_enemy: usize
 }
 
 struct Player {
@@ -158,6 +160,7 @@ impl MainState {
                     &mut timeline
                 )
             ],
+            target_enemy: 0,
             timeline: timeline
         };
 
@@ -173,7 +176,7 @@ impl event::EventHandler for MainState {
             self.player.next_action_time = self.action_time + ATTACK_ACTION_TIME;
             let dmg = calculate_balance_dmg(ATTACK_DAMAGE, self.player.current_balance);
             println!("damage dealt {}", dmg);
-            let enemy = &mut self.enemies[0];
+            let enemy = &mut self.enemies[self.target_enemy];
             enemy.stats.current_hp -= dmg;
             self.player.current_fatigue -= ATTACK_FATIGUE_COST;
             self.player.current_balance = calculate_balance();
@@ -182,6 +185,18 @@ impl event::EventHandler for MainState {
             self.player_fatigue_guage.update(self.player.current_fatigue as f32);
             enemy.hp_guage.update(enemy.stats.current_hp as f32);
             self.timeline.update_subject(self.player_timeline_handle, self.player.next_action_time);
+        }
+    }
+
+    fn mouse_button_down_event(
+        &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
+    ) {
+        if y < 110.0 {
+            if x > 600.0 {
+                self.target_enemy = 0;
+            } else if x > 460.0 {
+                self.target_enemy = 1;
+            }
         }
     }
 
@@ -251,6 +266,19 @@ impl event::EventHandler for MainState {
             graphics::draw(ctx, &enemy_balance_guage, (Point2::new(600.0 - enemy_display_offset, 80.0),))?;
             enemy_display_offset += 140.0;
         }
+
+        let enemy_highlight = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::stroke(2.0),
+            graphics::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 120.0,
+                h: 70.0
+            },
+            palette::GREY
+        )?;
+        graphics::draw(ctx, &enemy_highlight, (Point2::new(590.0 - 140.0 * self.target_enemy as f32, 40.0),))?;
 
         graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 500.0),))?;
 
