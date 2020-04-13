@@ -1,6 +1,6 @@
 use ggez;
 use ggez::event;
-use ggez::graphics;
+use ggez::graphics::{self, Color};
 use ggez::input::mouse::{MouseButton};
 use ggez::nalgebra::{Point2};
 use ggez::timer;
@@ -21,27 +21,48 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
-// TODO multiple player characters
-//  - queue up turns if they are both pending
 struct MainState {
     font: graphics::Font,
     action_time: f32,
     timeline: ActionTimeline,
-    player: Player,
-    player_fatigue_guage: ResourceGuage,
-    player_balance_guage: BalanceGuage,
-    player_attack_pending: bool,
-    player_timeline_handle: i32,
+    players: Vec<PlayerInBattle>,
+    players_pending: Vec<usize>,
     randomise_timer: f32,
     enemies: Vec<EnemyInBattle>,
     target_enemy: usize
 }
 
 struct Player {
+    color: Color,
     max_fatigue: i32,
     current_fatigue: i32,
     current_balance: f32,
     next_action_time: f32
+}
+
+struct PlayerInBattle {
+    stats: Player,
+    fatigue_guage: ResourceGuage,
+    balance_guage: BalanceGuage,
+    timeline_handle: i32
+}
+
+impl PlayerInBattle {
+    fn new(player: Player, timeline: &mut ActionTimeline) -> Self {
+        Self {
+            fatigue_guage: ResourceGuage::new(
+                player.max_fatigue as f32,
+                player.current_fatigue as f32,
+                player.color
+            ),
+            balance_guage: BalanceGuage::new(player.current_balance),
+            timeline_handle: timeline.add_subject(
+                player.color,
+                player.next_action_time
+            ),
+            stats: player
+        }
+    }
 }
 
 struct Enemy {
@@ -98,6 +119,15 @@ fn calculate_balance_dmg(base_dmg: i32, balance: f32) -> i32 {
     }
 }
 
+fn has_item<T: PartialEq>(list: &Vec<T>, search_item: &T) -> bool {
+    for item in list {
+        if item == search_item {
+            return true;
+        }
+    }
+    return false;
+}
+
 impl MainState {
     fn new(ctx: &mut ggez::Context) -> ggez::GameResult<MainState> {
 
@@ -110,32 +140,34 @@ impl MainState {
             Err(e) => panic!("{}", e)
         };
 
-        let player = Player {
-            max_fatigue: PLAYER_MAX_FATIGUE,
-            current_fatigue: PLAYER_MAX_FATIGUE,
-            current_balance: calculate_balance(),
-            next_action_time: PLAYER_FIRST_ACTION
-        };
-
         let mut timeline = ActionTimeline::new();
-
-        let player_timeline_handle = timeline.add_subject(
-            palette::GREEN,
-            player.next_action_time
-        );
 
         let s = MainState {
             font: font,
             action_time: 0.0,
-            player_fatigue_guage: ResourceGuage::new(
-                player.max_fatigue as f32,
-                player.current_fatigue as f32,
-                palette::GREEN
-            ),
-            player_balance_guage: BalanceGuage::new(player.current_balance),
-            player: player,
-            player_attack_pending: false,
-            player_timeline_handle: player_timeline_handle,
+            players: vec![
+                PlayerInBattle::new(
+                    Player {
+                        color: palette::GREEN,
+                        max_fatigue: PLAYER_MAX_FATIGUE,
+                        current_fatigue: PLAYER_MAX_FATIGUE,
+                        current_balance: calculate_balance(),
+                        next_action_time: PLAYER_FIRST_ACTION
+                    },
+                    &mut timeline
+                ),
+                PlayerInBattle::new(
+                    Player {
+                        color: palette::BLUE,
+                        max_fatigue: PLAYER_MAX_FATIGUE,
+                        current_fatigue: PLAYER_MAX_FATIGUE,
+                        current_balance: calculate_balance(),
+                        next_action_time: PLAYER_FIRST_ACTION
+                    },
+                    &mut timeline
+                )
+            ],
+            players_pending: Vec::new(),
             randomise_timer: 0.0,
             enemies: vec![
                 EnemyInBattle::new(
@@ -168,19 +200,20 @@ impl MainState {
 impl event::EventHandler for MainState {
 
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
-        if character == '1' && self.player_attack_pending {
-            self.player_attack_pending = false;
-            self.player.next_action_time = self.action_time + ATTACK_ACTION_TIME;
-            let dmg = calculate_balance_dmg(ATTACK_DAMAGE, self.player.current_balance);
+        if character == '1' && self.players_pending.len() > 0 {
+            let attacking_player_index = self.players_pending.remove(0);
+            let attacking_player = &mut self.players[attacking_player_index];
+            attacking_player.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+            let dmg = calculate_balance_dmg(ATTACK_DAMAGE, attacking_player.stats.current_balance);
             let enemy = &mut self.enemies[self.target_enemy];
             enemy.stats.current_hp -= dmg;
-            self.player.current_fatigue -= ATTACK_FATIGUE_COST;
-            self.player.current_balance = calculate_balance();
+            attacking_player.stats.current_fatigue -= ATTACK_FATIGUE_COST;
+            attacking_player.stats.current_balance = calculate_balance();
 
-            self.player_balance_guage.update(self.player.current_balance);
-            self.player_fatigue_guage.update(self.player.current_fatigue as f32);
+            attacking_player.balance_guage.update(attacking_player.stats.current_balance);
+            attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
             enemy.hp_guage.update(enemy.stats.current_hp as f32);
-            self.timeline.update_subject(self.player_timeline_handle, self.player.next_action_time);
+            self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
         }
     }
 
@@ -228,24 +261,29 @@ impl event::EventHandler for MainState {
             for enemy in &mut self.enemies {
                 if self.action_time > enemy.stats.next_action_time {
                     // Enemy attack
+                    let target_player = &mut self.players[0];
                     let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
-                    self.player.current_fatigue -= dmg;
+                    target_player.stats.current_fatigue -= dmg;
                     enemy.stats.current_balance = calculate_balance();
                     enemy.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
 
                     enemy.balance_guage.update(enemy.stats.current_balance);
-                    self.player_fatigue_guage.update(self.player.current_fatigue as f32);
+                    target_player.fatigue_guage.update(target_player.stats.current_fatigue as f32);
                     self.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
                 }
             }
 
-            if self.action_time > self.player.next_action_time {
-                // Player attack
-                self.player_attack_pending = true;
-            }
+            for (i, player) in self.players.iter_mut().enumerate() {
+                if self.action_time > player.stats.next_action_time {
+                    // Queue up player for attack
+                    if !has_item(&self.players_pending, &i) {
+                        self.players_pending.push(i);
+                    }
+                }
 
-            balance_guage::update(&mut self.player_balance_guage, delta);
-            resource_guage::update(&mut self.player_fatigue_guage, delta);
+                balance_guage::update(&mut player.balance_guage, delta);
+                resource_guage::update(&mut player.fatigue_guage, delta);
+            }
 
             for enemy in &mut self.enemies {
                 balance_guage::update(&mut enemy.balance_guage, delta);
@@ -266,9 +304,6 @@ impl event::EventHandler for MainState {
         let mut hello_world = graphics::Text::new("HELLO WORLD");
 
         hello_world.set_font(self.font, graphics::Scale::uniform(graphics::DEFAULT_FONT_SCALE * 2.0));
-
-        let player_fatigue_guage = resource_guage::create_mesh(ctx, &self.player_fatigue_guage)?;
-        let player_balance_guage = balance_guage::create_mesh(ctx, &self.player_balance_guage)?;
 
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
@@ -294,11 +329,17 @@ impl event::EventHandler for MainState {
         )?;
         graphics::draw(ctx, &enemy_highlight, (Point2::new(590.0 - 140.0 * self.target_enemy as f32, 40.0),))?;
 
-        graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0, 500.0),))?;
+        let mut player_display_offset = 0.0;
+        for player in &self.players {
+            let player_fatigue_guage = resource_guage::create_mesh(ctx, &player.fatigue_guage)?;
+            let player_balance_guage = balance_guage::create_mesh(ctx, &player.balance_guage)?;
 
-        graphics::draw(ctx, &player_balance_guage, (Point2::new(100.0, 530.0),))?;
+            graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0 + player_display_offset, 500.0),))?;
+            graphics::draw(ctx, &player_balance_guage, (Point2::new(100.0 + player_display_offset, 530.0),))?;
+            player_display_offset += 140.0;
+        }
 
-        if self.player_attack_pending {
+        if self.players_pending.len() > 0 {
             let player_highlight = graphics::Mesh::new_rectangle(
                 ctx,
                 graphics::DrawMode::stroke(2.0),
@@ -310,7 +351,8 @@ impl event::EventHandler for MainState {
                 },
                 palette::YELLOW
             )?;
-            graphics::draw(ctx, &player_highlight, (Point2::new(90.0, 490.0),))?;
+            let player_highlight_offset = self.players_pending[0] as f32 * 140.0;
+            graphics::draw(ctx, &player_highlight, (Point2::new(90.0 + player_highlight_offset, 490.0),))?;
         }
 
         let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;

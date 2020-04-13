@@ -35,7 +35,7 @@ impl ActionTimeline {
         let mut insert_position = 0;
 
         for id in &self.ordered_subjects {
-            if self.subject_times[id] < time {
+            if self.subject_times[id] <= time {
                 break;
             }
 
@@ -54,7 +54,7 @@ impl ActionTimeline {
         let mut insert_position = 0;
 
         for id in &self.ordered_subjects {
-            if self.subject_times[id] < new_time {
+            if self.subject_times[id] <= new_time {
                 break;
             }
 
