@@ -22,10 +22,6 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
-// TODO implement death / exhaustion
-//  - remove from timeline and swap enemy target to living
-//  - don't allow attack if dead enemy targeted
-//  - reset when either party is completely dead
 struct MainState {
     font: graphics::Font,
     randomise_timer: f32,
@@ -222,6 +218,16 @@ impl MainState {
 
         self.battle = BattleState::new();
     }
+
+    fn check_for_surviving_players(&mut self) {
+        for player in &self.battle.players {
+            if player.stats.current_fatigue > 0 {
+                return;
+            }
+        }
+
+        self.battle = BattleState::new();
+    }
 }
 
 impl event::EventHandler for MainState {
@@ -298,20 +304,35 @@ impl event::EventHandler for MainState {
             for enemy in &mut self.battle.enemies {
                 if enemy.stats.current_hp > 0 && self.battle.action_time > enemy.stats.next_action_time {
                     // Enemy attack
-                    let target_player = &mut self.battle.players[0];
+                    let mut target_player_index = 0;
+                    while self.battle.players.len() > target_player_index + 1 &&
+                        self.battle.players[target_player_index].stats.current_fatigue == 0 {
+                        target_player_index += 1;
+                    }
+                    let target_player = &mut self.battle.players[target_player_index];
+
                     let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
                     target_player.stats.current_fatigue -= dmg;
+                    target_player.stats.current_fatigue = cmp::max(0, target_player.stats.current_fatigue);
+
                     enemy.stats.current_balance = calculate_balance();
                     enemy.stats.next_action_time = self.battle.action_time + ATTACK_ACTION_TIME;
 
                     enemy.balance_guage.update(enemy.stats.current_balance);
                     target_player.fatigue_guage.update(target_player.stats.current_fatigue as f32);
                     self.battle.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
+
+                    if target_player.stats.current_fatigue == 0 {
+                        self.battle.players_pending.retain(|i| *i != target_player_index);
+                        self.battle.timeline.remove_subject(target_player.timeline_handle);
+                    }
                 }
             }
 
+            self.check_for_surviving_players();
+
             for (i, player) in self.battle.players.iter_mut().enumerate() {
-                if self.battle.action_time > player.stats.next_action_time {
+                if player.stats.current_fatigue > 0 && self.battle.action_time > player.stats.next_action_time {
                     // Queue up player for attack
                     if !has_item(&self.battle.players_pending, &i) {
                         self.battle.players_pending.push(i);
