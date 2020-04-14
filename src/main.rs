@@ -212,6 +212,16 @@ impl MainState {
 
         Ok(s)
     }
+
+    fn check_for_surviving_enemies(&mut self) {
+        for enemy in &self.battle.enemies {
+            if enemy.stats.current_hp > 0 {
+                return;
+            }
+        }
+
+        self.battle = BattleState::new();
+    }
 }
 
 impl event::EventHandler for MainState {
@@ -237,7 +247,9 @@ impl event::EventHandler for MainState {
             if enemy.stats.current_hp == 0 {
                 self.battle.timeline.remove_subject(enemy.timeline_handle);
 
-                self.battle.target_enemy = if self.battle.target_enemy == 0 { 1 } else { 0 }
+                self.battle.target_enemy = if self.battle.target_enemy == 0 { 1 } else { 0 };
+
+                self.check_for_surviving_enemies();
             }
         }
     }
