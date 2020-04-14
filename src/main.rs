@@ -28,13 +28,8 @@ const ATTACK_FATIGUE_COST: i32 = 5;
 //  - reset when either party is completely dead
 struct MainState {
     font: graphics::Font,
-    action_time: f32,
-    timeline: ActionTimeline,
-    players: Vec<PlayerInBattle>,
-    players_pending: Vec<usize>,
     randomise_timer: f32,
-    enemies: Vec<EnemyInBattle>,
-    target_enemy: usize
+    battle: BattleState
 }
 
 struct Player {
@@ -102,6 +97,70 @@ impl EnemyInBattle {
     }
 }
 
+struct BattleState {
+    action_time: f32,
+    timeline: ActionTimeline,
+    players: Vec<PlayerInBattle>,
+    players_pending: Vec<usize>,
+    enemies: Vec<EnemyInBattle>,
+    target_enemy: usize
+}
+
+impl BattleState {
+    fn new() -> Self {
+        let mut timeline = ActionTimeline::new();
+
+        Self {
+            action_time: 0.0,
+            players: vec![
+                PlayerInBattle::new(
+                    Player {
+                        color: palette::GREEN,
+                        max_fatigue: PLAYER_MAX_FATIGUE,
+                        current_fatigue: PLAYER_MAX_FATIGUE,
+                        current_balance: calculate_balance(),
+                        next_action_time: PLAYER_FIRST_ACTION
+                    },
+                    &mut timeline
+                ),
+                PlayerInBattle::new(
+                    Player {
+                        color: palette::BLUE,
+                        max_fatigue: PLAYER_MAX_FATIGUE,
+                        current_fatigue: PLAYER_MAX_FATIGUE,
+                        current_balance: calculate_balance(),
+                        next_action_time: PLAYER_FIRST_ACTION
+                    },
+                    &mut timeline
+                )
+            ],
+            players_pending: Vec::new(),
+            enemies: vec![
+                EnemyInBattle::new(
+                    Enemy {
+                        max_hp: ENEMY_MAX_HP,
+                        current_hp: ENEMY_MAX_HP,
+                        current_balance: calculate_balance(),
+                        next_action_time: ENEMY_FIRST_ACTION
+                    },
+                    &mut timeline
+                ),
+                EnemyInBattle::new(
+                    Enemy {
+                        max_hp: ENEMY_MAX_HP,
+                        current_hp: ENEMY_MAX_HP,
+                        current_balance: calculate_balance(),
+                        next_action_time: ENEMY_FIRST_ACTION
+                    },
+                    &mut timeline
+                )
+            ],
+            target_enemy: 0,
+            timeline: timeline
+        }
+    }
+}
+
 fn calculate_balance() -> f32 {
     let damage_group = random::<f32>();
 
@@ -145,57 +204,10 @@ impl MainState {
             Err(e) => panic!("{}", e)
         };
 
-        let mut timeline = ActionTimeline::new();
-
         let s = MainState {
             font: font,
-            action_time: 0.0,
-            players: vec![
-                PlayerInBattle::new(
-                    Player {
-                        color: palette::GREEN,
-                        max_fatigue: PLAYER_MAX_FATIGUE,
-                        current_fatigue: PLAYER_MAX_FATIGUE,
-                        current_balance: calculate_balance(),
-                        next_action_time: PLAYER_FIRST_ACTION
-                    },
-                    &mut timeline
-                ),
-                PlayerInBattle::new(
-                    Player {
-                        color: palette::BLUE,
-                        max_fatigue: PLAYER_MAX_FATIGUE,
-                        current_fatigue: PLAYER_MAX_FATIGUE,
-                        current_balance: calculate_balance(),
-                        next_action_time: PLAYER_FIRST_ACTION
-                    },
-                    &mut timeline
-                )
-            ],
-            players_pending: Vec::new(),
             randomise_timer: 0.0,
-            enemies: vec![
-                EnemyInBattle::new(
-                    Enemy {
-                        max_hp: ENEMY_MAX_HP,
-                        current_hp: ENEMY_MAX_HP,
-                        current_balance: calculate_balance(),
-                        next_action_time: ENEMY_FIRST_ACTION
-                    },
-                    &mut timeline
-                ),
-                EnemyInBattle::new(
-                    Enemy {
-                        max_hp: ENEMY_MAX_HP,
-                        current_hp: ENEMY_MAX_HP,
-                        current_balance: calculate_balance(),
-                        next_action_time: ENEMY_FIRST_ACTION
-                    },
-                    &mut timeline
-                )
-            ],
-            target_enemy: 0,
-            timeline: timeline
+            battle: BattleState::new()
         };
 
         Ok(s)
@@ -205,12 +217,12 @@ impl MainState {
 impl event::EventHandler for MainState {
 
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
-        if character == '1' && self.players_pending.len() > 0 {
-            let attacking_player_index = self.players_pending.remove(0);
-            let attacking_player = &mut self.players[attacking_player_index];
-            attacking_player.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+        if character == '1' && self.battle.players_pending.len() > 0 {
+            let attacking_player_index = self.battle.players_pending.remove(0);
+            let attacking_player = &mut self.battle.players[attacking_player_index];
+            attacking_player.stats.next_action_time = self.battle.action_time + ATTACK_ACTION_TIME;
             let dmg = calculate_balance_dmg(ATTACK_DAMAGE, attacking_player.stats.current_balance);
-            let enemy = &mut self.enemies[self.target_enemy];
+            let enemy = &mut self.battle.enemies[self.battle.target_enemy];
             enemy.stats.current_hp -= dmg;
             enemy.stats.current_hp = cmp::max(0, enemy.stats.current_hp);
 
@@ -220,12 +232,12 @@ impl event::EventHandler for MainState {
             attacking_player.balance_guage.update(attacking_player.stats.current_balance);
             attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
             enemy.hp_guage.update(enemy.stats.current_hp as f32);
-            self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
+            self.battle.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
 
             if enemy.stats.current_hp == 0 {
-                self.timeline.remove_subject(enemy.timeline_handle);
+                self.battle.timeline.remove_subject(enemy.timeline_handle);
 
-                self.target_enemy = if self.target_enemy == 0 { 1 } else { 0 }
+                self.battle.target_enemy = if self.battle.target_enemy == 0 { 1 } else { 0 }
             }
         }
     }
@@ -234,10 +246,10 @@ impl event::EventHandler for MainState {
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
         if y < 110.0 {
-            if x > 600.0 && self.enemies[0].stats.current_hp > 0 {
-                self.target_enemy = 0;
-            } else if x > 460.0 && self.enemies[1].stats.current_hp > 0 {
-                self.target_enemy = 1;
+            if x > 600.0 && self.battle.enemies[0].stats.current_hp > 0 {
+                self.battle.target_enemy = 0;
+            } else if x > 460.0 && self.battle.enemies[1].stats.current_hp > 0 {
+                self.battle.target_enemy = 1;
             }
         }
     }
@@ -250,13 +262,13 @@ impl event::EventHandler for MainState {
         _dx: f32,
         _dy: f32
     ) {
-        self.timeline.highlighted_subject = None;
+        self.battle.timeline.highlighted_subject = None;
 
         if y < 110.0 {
-            if x > 600.0 && self.enemies[0].stats.current_hp > 0 {
-                self.timeline.highlighted_subject = Some(self.enemies[0].timeline_handle);
-            } else if x > 460.0 && self.enemies[1].stats.current_hp > 0 {
-                self.timeline.highlighted_subject = Some(self.enemies[1].timeline_handle);
+            if x > 600.0 && self.battle.enemies[0].stats.current_hp > 0 {
+                self.battle.timeline.highlighted_subject = Some(self.battle.enemies[0].timeline_handle);
+            } else if x > 460.0 && self.battle.enemies[1].stats.current_hp > 0 {
+                self.battle.timeline.highlighted_subject = Some(self.battle.enemies[1].timeline_handle);
             }
         }
     }
@@ -268,29 +280,29 @@ impl event::EventHandler for MainState {
 
             self.randomise_timer += delta;
 
-            self.action_time += ACTION_POINTS_PER_SECOND * delta;
-            self.timeline.update(self.action_time);
+            self.battle.action_time += ACTION_POINTS_PER_SECOND * delta;
+            self.battle.timeline.update(self.battle.action_time);
 
-            for enemy in &mut self.enemies {
-                if enemy.stats.current_hp > 0 && self.action_time > enemy.stats.next_action_time {
+            for enemy in &mut self.battle.enemies {
+                if enemy.stats.current_hp > 0 && self.battle.action_time > enemy.stats.next_action_time {
                     // Enemy attack
-                    let target_player = &mut self.players[0];
+                    let target_player = &mut self.battle.players[0];
                     let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
                     target_player.stats.current_fatigue -= dmg;
                     enemy.stats.current_balance = calculate_balance();
-                    enemy.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+                    enemy.stats.next_action_time = self.battle.action_time + ATTACK_ACTION_TIME;
 
                     enemy.balance_guage.update(enemy.stats.current_balance);
                     target_player.fatigue_guage.update(target_player.stats.current_fatigue as f32);
-                    self.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
+                    self.battle.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
                 }
             }
 
-            for (i, player) in self.players.iter_mut().enumerate() {
-                if self.action_time > player.stats.next_action_time {
+            for (i, player) in self.battle.players.iter_mut().enumerate() {
+                if self.battle.action_time > player.stats.next_action_time {
                     // Queue up player for attack
-                    if !has_item(&self.players_pending, &i) {
-                        self.players_pending.push(i);
+                    if !has_item(&self.battle.players_pending, &i) {
+                        self.battle.players_pending.push(i);
                     }
                 }
 
@@ -298,7 +310,7 @@ impl event::EventHandler for MainState {
                 resource_guage::update(&mut player.fatigue_guage, delta);
             }
 
-            for enemy in &mut self.enemies {
+            for enemy in &mut self.battle.enemies {
                 balance_guage::update(&mut enemy.balance_guage, delta);
                 resource_guage::update(&mut enemy.hp_guage, delta);
             }
@@ -321,7 +333,7 @@ impl event::EventHandler for MainState {
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
         let mut enemy_display_offset = 0.0;
-        for enemy in &self.enemies {
+        for enemy in &self.battle.enemies {
             let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage)?;
             let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage)?;
             graphics::draw(ctx, &enemy_hp_guage, (Point2::new(600.0 - enemy_display_offset, 50.0),))?;
@@ -340,10 +352,10 @@ impl event::EventHandler for MainState {
             },
             palette::GREY
         )?;
-        graphics::draw(ctx, &enemy_highlight, (Point2::new(590.0 - 140.0 * self.target_enemy as f32, 40.0),))?;
+        graphics::draw(ctx, &enemy_highlight, (Point2::new(590.0 - 140.0 * self.battle.target_enemy as f32, 40.0),))?;
 
         let mut player_display_offset = 0.0;
-        for player in &self.players {
+        for player in &self.battle.players {
             let player_fatigue_guage = resource_guage::create_mesh(ctx, &player.fatigue_guage)?;
             let player_balance_guage = balance_guage::create_mesh(ctx, &player.balance_guage)?;
 
@@ -352,7 +364,7 @@ impl event::EventHandler for MainState {
             player_display_offset += 140.0;
         }
 
-        if self.players_pending.len() > 0 {
+        if self.battle.players_pending.len() > 0 {
             let player_highlight = graphics::Mesh::new_rectangle(
                 ctx,
                 graphics::DrawMode::stroke(2.0),
@@ -364,11 +376,11 @@ impl event::EventHandler for MainState {
                 },
                 palette::YELLOW
             )?;
-            let player_highlight_offset = self.players_pending[0] as f32 * 140.0;
+            let player_highlight_offset = self.battle.players_pending[0] as f32 * 140.0;
             graphics::draw(ctx, &player_highlight, (Point2::new(90.0 + player_highlight_offset, 490.0),))?;
         }
 
-        let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
+        let timeline_mesh = action_timeline::create_mesh(ctx, &self.battle.timeline)?;
 
         graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 400.0),))?;
 
