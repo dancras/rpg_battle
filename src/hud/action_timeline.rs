@@ -67,6 +67,16 @@ impl ActionTimeline {
     pub fn update(&mut self, time: f32) {
         self.time = time;
     }
+
+    pub fn remove_subject(&mut self, subject_id: i32) {
+        self.ordered_subjects.retain(|&id| id != subject_id);
+        self.subject_colors.remove(&subject_id);
+        self.subject_times.remove(&subject_id);
+
+        if Some(subject_id) == self.highlighted_subject {
+            self.highlighted_subject = None;
+        }
+    }
 }
 
 pub fn update(viewmodel: &mut ActionTimeline, delta: f32) {

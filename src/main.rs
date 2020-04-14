@@ -9,6 +9,7 @@ use rpg_battle::palette;
 use rpg_battle::hud::action_timeline::{self, ActionTimeline};
 use rpg_battle::hud::resource_guage::{self, ResourceGuage};
 use rpg_battle::hud::balance_guage::{self, BalanceGuage};
+use std::cmp;
 
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
@@ -21,6 +22,10 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
+// TODO implement death / exhaustion
+//  - remove from timeline and swap enemy target to living
+//  - don't allow attack if dead enemy targeted
+//  - reset when either party is completely dead
 struct MainState {
     font: graphics::Font,
     action_time: f32,
@@ -207,6 +212,8 @@ impl event::EventHandler for MainState {
             let dmg = calculate_balance_dmg(ATTACK_DAMAGE, attacking_player.stats.current_balance);
             let enemy = &mut self.enemies[self.target_enemy];
             enemy.stats.current_hp -= dmg;
+            enemy.stats.current_hp = cmp::max(0, enemy.stats.current_hp);
+
             attacking_player.stats.current_fatigue -= ATTACK_FATIGUE_COST;
             attacking_player.stats.current_balance = calculate_balance();
 
@@ -214,6 +221,12 @@ impl event::EventHandler for MainState {
             attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
             enemy.hp_guage.update(enemy.stats.current_hp as f32);
             self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
+
+            if enemy.stats.current_hp == 0 {
+                self.timeline.remove_subject(enemy.timeline_handle);
+
+                self.target_enemy = if self.target_enemy == 0 { 1 } else { 0 }
+            }
         }
     }
 
@@ -221,9 +234,9 @@ impl event::EventHandler for MainState {
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
         if y < 110.0 {
-            if x > 600.0 {
+            if x > 600.0 && self.enemies[0].stats.current_hp > 0 {
                 self.target_enemy = 0;
-            } else if x > 460.0 {
+            } else if x > 460.0 && self.enemies[1].stats.current_hp > 0 {
                 self.target_enemy = 1;
             }
         }
@@ -240,9 +253,9 @@ impl event::EventHandler for MainState {
         self.timeline.highlighted_subject = None;
 
         if y < 110.0 {
-            if x > 600.0 {
+            if x > 600.0 && self.enemies[0].stats.current_hp > 0 {
                 self.timeline.highlighted_subject = Some(self.enemies[0].timeline_handle);
-            } else if x > 460.0 {
+            } else if x > 460.0 && self.enemies[1].stats.current_hp > 0 {
                 self.timeline.highlighted_subject = Some(self.enemies[1].timeline_handle);
             }
         }
@@ -259,7 +272,7 @@ impl event::EventHandler for MainState {
             self.timeline.update(self.action_time);
 
             for enemy in &mut self.enemies {
-                if self.action_time > enemy.stats.next_action_time {
+                if enemy.stats.current_hp > 0 && self.action_time > enemy.stats.next_action_time {
                     // Enemy attack
                     let target_player = &mut self.players[0];
                     let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
@@ -364,7 +377,7 @@ impl event::EventHandler for MainState {
     }
 }
 
-pub fn main() -> ggez::GameResult { 
+pub fn main() -> ggez::GameResult {
     let cb = ggez::ContextBuilder::new("super_simple", "ggez");
     let (ctx, event_loop) = &mut cb.build()?;
     let state = &mut MainState::new(ctx)?;
