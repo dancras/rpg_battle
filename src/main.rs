@@ -22,6 +22,8 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
+// TODO Restructure so that game logic doesn't happen in event handlers
+// TODO Refactor into modules where appropriate
 struct MainState {
     font: graphics::Font,
     randomise_timer: f32,
@@ -99,6 +101,7 @@ struct BattleState {
     players: Vec<PlayerInBattle>,
     players_pending: Vec<usize>,
     enemies: Vec<EnemyInBattle>,
+    hovered_enemy: Option<usize>,
     target_enemy: usize
 }
 
@@ -151,6 +154,7 @@ impl BattleState {
                     &mut timeline
                 )
             ],
+            hovered_enemy: None,
             target_enemy: 0,
             timeline: timeline
         }
@@ -253,7 +257,12 @@ impl event::EventHandler for MainState {
             if enemy.stats.current_hp == 0 {
                 self.battle.timeline.remove_subject(enemy.timeline_handle);
 
-                self.battle.target_enemy = if self.battle.target_enemy == 0 { 1 } else { 0 };
+                self.battle.target_enemy = 0;
+
+                while self.battle.target_enemy < self.battle.enemies.len() &&
+                      self.battle.enemies[self.battle.target_enemy].stats.current_hp == 0 {
+                    self.battle.target_enemy += 1;
+                }
 
                 self.check_for_surviving_enemies();
             }
@@ -261,14 +270,10 @@ impl event::EventHandler for MainState {
     }
 
     fn mouse_button_down_event(
-        &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
+        &mut self, _ctx: &mut ggez::Context, _button: MouseButton, _x: f32, _y: f32
     ) {
-        if y < 110.0 {
-            if x > 600.0 && self.battle.enemies[0].stats.current_hp > 0 {
-                self.battle.target_enemy = 0;
-            } else if x > 460.0 && self.battle.enemies[1].stats.current_hp > 0 {
-                self.battle.target_enemy = 1;
-            }
+        if let Some(i) = self.battle.hovered_enemy {
+            self.battle.target_enemy = i;
         }
     }
 
@@ -281,12 +286,14 @@ impl event::EventHandler for MainState {
         _dy: f32
     ) {
         self.battle.timeline.highlighted_subject = None;
+        self.battle.hovered_enemy = None;
 
         if y < 110.0 {
-            if x > 600.0 && self.battle.enemies[0].stats.current_hp > 0 {
-                self.battle.timeline.highlighted_subject = Some(self.battle.enemies[0].timeline_handle);
-            } else if x > 460.0 && self.battle.enemies[1].stats.current_hp > 0 {
-                self.battle.timeline.highlighted_subject = Some(self.battle.enemies[1].timeline_handle);
+            for (i, enemy) in self.battle.enemies.iter().enumerate().rev() {
+                if x > 600.0 - 140.0 * i as f32 && enemy.stats.current_hp > 0 {
+                    self.battle.hovered_enemy = Some(i);
+                    self.battle.timeline.highlighted_subject = Some(enemy.timeline_handle);
+                }
             }
         }
     }
