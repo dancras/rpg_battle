@@ -159,6 +159,39 @@ impl BattleState {
             timeline: timeline
         }
     }
+
+    fn player_move_pending(&self) -> bool {
+        self.players_pending.len() > 0
+    }
+
+    fn player_attack_move(&mut self) {
+        let attacking_player_index = self.players_pending.remove(0);
+        let attacking_player = &mut self.players[attacking_player_index];
+        attacking_player.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+        let dmg = calculate_balance_dmg(ATTACK_DAMAGE, attacking_player.stats.current_balance);
+        let enemy = &mut self.enemies[self.target_enemy];
+        enemy.stats.current_hp -= dmg;
+        enemy.stats.current_hp = cmp::max(0, enemy.stats.current_hp);
+
+        attacking_player.stats.current_fatigue -= ATTACK_FATIGUE_COST;
+        attacking_player.stats.current_balance = calculate_balance();
+
+        attacking_player.balance_guage.update(attacking_player.stats.current_balance);
+        attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
+        enemy.hp_guage.update(enemy.stats.current_hp as f32);
+        self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
+
+        if enemy.stats.current_hp == 0 {
+            self.timeline.remove_subject(enemy.timeline_handle);
+
+            self.target_enemy = 0;
+
+            while self.target_enemy < self.enemies.len() &&
+                  self.enemies[self.target_enemy].stats.current_hp == 0 {
+                self.target_enemy += 1;
+            }
+        }
+    }
 }
 
 fn calculate_balance() -> f32 {
@@ -237,35 +270,9 @@ impl MainState {
 impl event::EventHandler for MainState {
 
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
-        if character == '1' && self.battle.players_pending.len() > 0 {
-            let attacking_player_index = self.battle.players_pending.remove(0);
-            let attacking_player = &mut self.battle.players[attacking_player_index];
-            attacking_player.stats.next_action_time = self.battle.action_time + ATTACK_ACTION_TIME;
-            let dmg = calculate_balance_dmg(ATTACK_DAMAGE, attacking_player.stats.current_balance);
-            let enemy = &mut self.battle.enemies[self.battle.target_enemy];
-            enemy.stats.current_hp -= dmg;
-            enemy.stats.current_hp = cmp::max(0, enemy.stats.current_hp);
-
-            attacking_player.stats.current_fatigue -= ATTACK_FATIGUE_COST;
-            attacking_player.stats.current_balance = calculate_balance();
-
-            attacking_player.balance_guage.update(attacking_player.stats.current_balance);
-            attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
-            enemy.hp_guage.update(enemy.stats.current_hp as f32);
-            self.battle.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
-
-            if enemy.stats.current_hp == 0 {
-                self.battle.timeline.remove_subject(enemy.timeline_handle);
-
-                self.battle.target_enemy = 0;
-
-                while self.battle.target_enemy < self.battle.enemies.len() &&
-                      self.battle.enemies[self.battle.target_enemy].stats.current_hp == 0 {
-                    self.battle.target_enemy += 1;
-                }
-
-                self.check_for_surviving_enemies();
-            }
+        if character == '1' && self.battle.player_move_pending() {
+            self.battle.player_attack_move();
+            self.check_for_surviving_enemies();
         }
     }
 
