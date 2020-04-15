@@ -108,9 +108,10 @@ struct BattleState {
 
 impl BattleState {
 
-    fn handle_event(&mut self, event: &BattleEvents) {
+    fn handle_event<F: FnMut(BattleEvents)>(&mut self, event: &BattleEvents, mut notify: F) {
 
         match event {
+            BattleEvents::End => {},
             BattleEvents::EnemyTakesDamage(i) => {
                 let enemy = &mut self.enemies[*i];
 
@@ -125,6 +126,10 @@ impl BattleState {
                           self.enemies[self.target_enemy].stats.current_hp == 0 {
                         self.target_enemy += 1;
                     }
+                }
+
+                if self.target_enemy == self.enemies.len() {
+                    notify(BattleEvents::End);
                 }
             }
         }
@@ -209,7 +214,12 @@ impl BattleState {
 }
 
 enum BattleEvents {
+    End,
     EnemyTakesDamage(usize)
+}
+
+fn battle_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + FnMut(BattleEvents) {
+    move |battle_event| main_events.push(MainEvents::BattleEvent(battle_event))
 }
 
 enum MainEvents {
@@ -269,16 +279,6 @@ impl MainState {
         Ok(s)
     }
 
-    fn check_for_surviving_enemies(&mut self) {
-        for enemy in &self.battle.enemies {
-            if enemy.stats.current_hp > 0 {
-                return;
-            }
-        }
-
-        self.battle = BattleState::new();
-    }
-
     fn check_for_surviving_players(&mut self) {
         for player in &self.battle.players {
             if player.stats.current_fatigue > 0 {
@@ -290,13 +290,17 @@ impl MainState {
     }
 
     fn flush_events(&mut self) {
-        while self.events.len() > 0 {
-            let event = self.events.remove(0);
+        let main_events = &mut self.events;
+
+        while main_events.len() > 0 {
+            let event = main_events.remove(0);
 
             match event {
+                MainEvents::BattleEvent(BattleEvents::End) => {
+                    self.battle = BattleState::new();
+                },
                 MainEvents::BattleEvent(e) => {
-                    self.battle.handle_event(&e);
-                    self.check_for_surviving_enemies();
+                    self.battle.handle_event(&e, battle_event_notifier(main_events));
                 }
             }
         }
@@ -308,7 +312,7 @@ impl event::EventHandler for MainState {
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
         if character == '1' && self.battle.player_move_pending() {
             let main_events = &mut self.events;
-            self.battle.player_attack_move(|battle_event| main_events.push(MainEvents::BattleEvent(battle_event)));
+            self.battle.player_attack_move(battle_event_notifier(main_events));
         }
 
         self.flush_events();
