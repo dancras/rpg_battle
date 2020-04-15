@@ -22,6 +22,7 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
+// TODO Add a tick trait and refactor update function so it just gathers all ticks and ticks them
 // TODO Restructure so that game logic doesn't happen in event handlers
 // TODO Refactor into modules where appropriate
 struct MainState {
@@ -138,8 +139,7 @@ impl BattleState {
                 player.fatigue_guage.update(player.stats.current_fatigue as f32);
 
                 if player.stats.current_fatigue == 0 {
-                    // TODO do some tests of reference equality for usize values
-                    self.players_pending.retain(|j| *j != *i);
+                    self.players_pending.retain(|j| j != i);
                     self.timeline.remove_subject(player.timeline_handle);
 
                     if !self.any_surviving_players() {
