@@ -131,6 +131,21 @@ impl BattleState {
                 if self.target_enemy == self.enemies.len() {
                     notify(BattleEvents::End);
                 }
+            },
+            BattleEvents::PlayerTakesDamage(i) => {
+                let player = &mut self.players[*i];
+
+                player.fatigue_guage.update(player.stats.current_fatigue as f32);
+
+                if player.stats.current_fatigue == 0 {
+                    // TODO do some tests of reference equality for usize values
+                    self.players_pending.retain(|j| *j != *i);
+                    self.timeline.remove_subject(player.timeline_handle);
+
+                    if !self.any_surviving_players() {
+                        notify(BattleEvents::End);
+                    }
+                }
             }
         }
     }
@@ -189,6 +204,16 @@ impl BattleState {
         }
     }
 
+    fn any_surviving_players(&mut self) -> bool{
+        for player in &self.players {
+            if player.stats.current_fatigue > 0 {
+                return true;
+            }
+        }
+
+        false
+    }
+
     fn player_move_pending(&self) -> bool {
         self.players_pending.len() > 0
     }
@@ -215,7 +240,8 @@ impl BattleState {
 
 enum BattleEvents {
     End,
-    EnemyTakesDamage(usize)
+    EnemyTakesDamage(usize),
+    PlayerTakesDamage(usize)
 }
 
 fn battle_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + FnMut(BattleEvents) {
@@ -279,16 +305,6 @@ impl MainState {
         Ok(s)
     }
 
-    fn check_for_surviving_players(&mut self) {
-        for player in &self.battle.players {
-            if player.stats.current_fatigue > 0 {
-                return;
-            }
-        }
-
-        self.battle = BattleState::new();
-    }
-
     fn flush_events(&mut self) {
         let main_events = &mut self.events;
 
@@ -311,8 +327,7 @@ impl event::EventHandler for MainState {
 
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
         if character == '1' && self.battle.player_move_pending() {
-            let main_events = &mut self.events;
-            self.battle.player_attack_move(battle_event_notifier(main_events));
+            self.battle.player_attack_move(battle_event_notifier(&mut self.events));
         }
 
         self.flush_events();
@@ -350,6 +365,7 @@ impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
+
             let delta = 1.0 / (DESIRED_FPS as f32);
 
             self.randomise_timer += delta;
@@ -359,6 +375,8 @@ impl event::EventHandler for MainState {
 
             for enemy in &mut self.battle.enemies {
                 if enemy.stats.current_hp > 0 && self.battle.action_time > enemy.stats.next_action_time {
+                    let mut notify = battle_event_notifier(&mut self.events);
+
                     // Enemy attack
                     let mut target_player_index = 0;
                     while self.battle.players.len() > target_player_index + 1 &&
@@ -370,22 +388,16 @@ impl event::EventHandler for MainState {
                     let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
                     target_player.stats.current_fatigue -= dmg;
                     target_player.stats.current_fatigue = cmp::max(0, target_player.stats.current_fatigue);
+                    notify(BattleEvents::PlayerTakesDamage(target_player_index));
 
                     enemy.stats.current_balance = calculate_balance();
                     enemy.stats.next_action_time = self.battle.action_time + ATTACK_ACTION_TIME;
 
                     enemy.balance_guage.update(enemy.stats.current_balance);
-                    target_player.fatigue_guage.update(target_player.stats.current_fatigue as f32);
-                    self.battle.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
 
-                    if target_player.stats.current_fatigue == 0 {
-                        self.battle.players_pending.retain(|i| *i != target_player_index);
-                        self.battle.timeline.remove_subject(target_player.timeline_handle);
-                    }
+                    self.battle.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
                 }
             }
-
-            self.check_for_surviving_players();
 
             for (i, player) in self.battle.players.iter_mut().enumerate() {
                 if player.stats.current_fatigue > 0 && self.battle.action_time > player.stats.next_action_time {
@@ -407,6 +419,8 @@ impl event::EventHandler for MainState {
             if self.randomise_timer > RANDOMISE_INTERVAL {
                 self.randomise_timer = self.randomise_timer % RANDOMISE_INTERVAL;
             }
+
+            self.flush_events();
         }
 
         Ok(())
