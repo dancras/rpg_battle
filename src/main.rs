@@ -27,7 +27,8 @@ const ATTACK_FATIGUE_COST: i32 = 5;
 struct MainState {
     font: graphics::Font,
     randomise_timer: f32,
-    battle: BattleState
+    battle: BattleState,
+    events: Vec<MainEvents>
 }
 
 struct Player {
@@ -106,6 +107,29 @@ struct BattleState {
 }
 
 impl BattleState {
+
+    fn handle_event(&mut self, event: &BattleEvents) {
+
+        match event {
+            BattleEvents::EnemyTakesDamage(i) => {
+                let enemy = &mut self.enemies[*i];
+
+                enemy.hp_guage.update(enemy.stats.current_hp as f32);
+
+                if enemy.stats.current_hp == 0 {
+                    self.timeline.remove_subject(enemy.timeline_handle);
+
+                    self.target_enemy = 0;
+
+                    while self.target_enemy < self.enemies.len() &&
+                          self.enemies[self.target_enemy].stats.current_hp == 0 {
+                        self.target_enemy += 1;
+                    }
+                }
+            }
+        }
+    }
+
     fn new() -> Self {
         let mut timeline = ActionTimeline::new();
 
@@ -164,7 +188,7 @@ impl BattleState {
         self.players_pending.len() > 0
     }
 
-    fn player_attack_move(&mut self) {
+    fn player_attack_move<F: FnMut(BattleEvents)>(&mut self, mut notify: F) {
         let attacking_player_index = self.players_pending.remove(0);
         let attacking_player = &mut self.players[attacking_player_index];
         attacking_player.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
@@ -172,26 +196,24 @@ impl BattleState {
         let enemy = &mut self.enemies[self.target_enemy];
         enemy.stats.current_hp -= dmg;
         enemy.stats.current_hp = cmp::max(0, enemy.stats.current_hp);
+        notify(BattleEvents::EnemyTakesDamage(self.target_enemy));
 
         attacking_player.stats.current_fatigue -= ATTACK_FATIGUE_COST;
         attacking_player.stats.current_balance = calculate_balance();
 
         attacking_player.balance_guage.update(attacking_player.stats.current_balance);
         attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
-        enemy.hp_guage.update(enemy.stats.current_hp as f32);
+
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
-
-        if enemy.stats.current_hp == 0 {
-            self.timeline.remove_subject(enemy.timeline_handle);
-
-            self.target_enemy = 0;
-
-            while self.target_enemy < self.enemies.len() &&
-                  self.enemies[self.target_enemy].stats.current_hp == 0 {
-                self.target_enemy += 1;
-            }
-        }
     }
+}
+
+enum BattleEvents {
+    EnemyTakesDamage(usize)
+}
+
+enum MainEvents {
+    BattleEvent(BattleEvents)
 }
 
 fn calculate_balance() -> f32 {
@@ -240,7 +262,8 @@ impl MainState {
         let s = MainState {
             font: font,
             randomise_timer: 0.0,
-            battle: BattleState::new()
+            battle: BattleState::new(),
+            events: Vec::new()
         };
 
         Ok(s)
@@ -265,15 +288,30 @@ impl MainState {
 
         self.battle = BattleState::new();
     }
+
+    fn flush_events(&mut self) {
+        while self.events.len() > 0 {
+            let event = self.events.remove(0);
+
+            match event {
+                MainEvents::BattleEvent(e) => {
+                    self.battle.handle_event(&e);
+                    self.check_for_surviving_enemies();
+                }
+            }
+        }
+    }
 }
 
 impl event::EventHandler for MainState {
 
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
         if character == '1' && self.battle.player_move_pending() {
-            self.battle.player_attack_move();
-            self.check_for_surviving_enemies();
+            let main_events = &mut self.events;
+            self.battle.player_attack_move(|battle_event| main_events.push(MainEvents::BattleEvent(battle_event)));
         }
+
+        self.flush_events();
     }
 
     fn mouse_button_down_event(
