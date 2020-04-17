@@ -22,7 +22,6 @@ const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
 
-// TODO Add a tick trait and refactor update function so it just gathers all ticks and ticks them
 // TODO Restructure so that game logic doesn't happen in event handlers
 // TODO Refactor into modules where appropriate
 struct MainState {
@@ -108,6 +107,55 @@ struct BattleState {
 }
 
 impl BattleState {
+
+    fn tick<F: FnMut(BattleEvents)>(&mut self, delta: f32, mut notify: F) {
+
+        self.action_time += ACTION_POINTS_PER_SECOND * delta;
+        self.timeline.update(self.action_time);
+
+        for enemy in &mut self.enemies {
+            if enemy.stats.current_hp > 0 && self.action_time > enemy.stats.next_action_time {
+
+                // Enemy attack
+                let mut target_player_index = 0;
+                while self.players.len() > target_player_index + 1 &&
+                    self.players[target_player_index].stats.current_fatigue == 0 {
+                    target_player_index += 1;
+                }
+                let target_player = &mut self.players[target_player_index];
+
+                let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
+                target_player.stats.current_fatigue -= dmg;
+                target_player.stats.current_fatigue = cmp::max(0, target_player.stats.current_fatigue);
+                notify(BattleEvents::PlayerTakesDamage(target_player_index));
+
+                enemy.stats.current_balance = calculate_balance();
+                enemy.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
+
+                enemy.balance_guage.update(enemy.stats.current_balance);
+
+                self.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
+            }
+        }
+
+        for (i, player) in self.players.iter_mut().enumerate() {
+            if player.stats.current_fatigue > 0 && self.action_time > player.stats.next_action_time {
+                // Queue up player for attack
+                if !has_item(&self.players_pending, &i) {
+                    self.players_pending.push(i);
+                }
+            }
+
+            balance_guage::update(&mut player.balance_guage, delta);
+            resource_guage::update(&mut player.fatigue_guage, delta);
+        }
+
+        for enemy in &mut self.enemies {
+            balance_guage::update(&mut enemy.balance_guage, delta);
+            resource_guage::update(&mut enemy.hp_guage, delta);
+        }
+
+    }
 
     fn handle_event<F: FnMut(BattleEvents)>(&mut self, event: &BattleEvents, mut notify: F) {
 
@@ -370,51 +418,7 @@ impl event::EventHandler for MainState {
 
             self.randomise_timer += delta;
 
-            self.battle.action_time += ACTION_POINTS_PER_SECOND * delta;
-            self.battle.timeline.update(self.battle.action_time);
-
-            for enemy in &mut self.battle.enemies {
-                if enemy.stats.current_hp > 0 && self.battle.action_time > enemy.stats.next_action_time {
-                    let mut notify = battle_event_notifier(&mut self.events);
-
-                    // Enemy attack
-                    let mut target_player_index = 0;
-                    while self.battle.players.len() > target_player_index + 1 &&
-                        self.battle.players[target_player_index].stats.current_fatigue == 0 {
-                        target_player_index += 1;
-                    }
-                    let target_player = &mut self.battle.players[target_player_index];
-
-                    let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
-                    target_player.stats.current_fatigue -= dmg;
-                    target_player.stats.current_fatigue = cmp::max(0, target_player.stats.current_fatigue);
-                    notify(BattleEvents::PlayerTakesDamage(target_player_index));
-
-                    enemy.stats.current_balance = calculate_balance();
-                    enemy.stats.next_action_time = self.battle.action_time + ATTACK_ACTION_TIME;
-
-                    enemy.balance_guage.update(enemy.stats.current_balance);
-
-                    self.battle.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
-                }
-            }
-
-            for (i, player) in self.battle.players.iter_mut().enumerate() {
-                if player.stats.current_fatigue > 0 && self.battle.action_time > player.stats.next_action_time {
-                    // Queue up player for attack
-                    if !has_item(&self.battle.players_pending, &i) {
-                        self.battle.players_pending.push(i);
-                    }
-                }
-
-                balance_guage::update(&mut player.balance_guage, delta);
-                resource_guage::update(&mut player.fatigue_guage, delta);
-            }
-
-            for enemy in &mut self.battle.enemies {
-                balance_guage::update(&mut enemy.balance_guage, delta);
-                resource_guage::update(&mut enemy.hp_guage, delta);
-            }
+            self.battle.tick(delta, battle_event_notifier(&mut self.events));
 
             if self.randomise_timer > RANDOMISE_INTERVAL {
                 self.randomise_timer = self.randomise_timer % RANDOMISE_INTERVAL;
