@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 ezing = "0.2"
 ggez = "0.5"
+nalgebra = "0.18"
 rand = "0.7"

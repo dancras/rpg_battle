@@ -2,7 +2,7 @@ use ggez;
 use ggez::event;
 use ggez::graphics::{self, Color};
 use ggez::input::mouse::{MouseButton};
-use ggez::nalgebra::{Point2};
+use nalgebra::{Point2, Vector2};
 use ggez::timer;
 use rand::{random};
 use rpg_battle::palette;
@@ -440,26 +440,16 @@ impl event::EventHandler for MainState {
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
         let mut enemy_display_offset = 0.0;
-        for enemy in &self.battle.enemies {
-            let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage)?;
-            let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage)?;
-            graphics::draw(ctx, &enemy_hp_guage, (Point2::new(600.0 - enemy_display_offset, 50.0),))?;
-            graphics::draw(ctx, &enemy_balance_guage, (Point2::new(600.0 - enemy_display_offset, 80.0),))?;
+
+        for (i, enemy) in self.battle.enemies.iter_mut().enumerate() {
+            draw_enemy_display(
+                ctx,
+                enemy,
+                Point2::new(590.0 - enemy_display_offset, 40.0),
+                i == self.battle.target_enemy
+            )?;
             enemy_display_offset += 140.0;
         }
-
-        let enemy_highlight = graphics::Mesh::new_rectangle(
-            ctx,
-            graphics::DrawMode::stroke(2.0),
-            graphics::Rect {
-                x: 0.0,
-                y: 0.0,
-                w: 120.0,
-                h: 70.0
-            },
-            palette::GREY
-        )?;
-        graphics::draw(ctx, &enemy_highlight, (Point2::new(590.0 - 140.0 * self.battle.target_enemy as f32, 40.0),))?;
 
         let mut player_display_offset = 0.0;
         for player in &self.battle.players {
@@ -494,6 +484,35 @@ impl event::EventHandler for MainState {
         graphics::present(ctx)?;
         Ok(())
     }
+}
+
+fn draw_enemy_display(
+    ctx: &mut ggez::Context,
+    enemy: &EnemyInBattle,
+    position: Point2<f32>,
+    is_highlighted: bool
+) -> ggez::GameResult {
+    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage)?;
+    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage)?;
+    graphics::draw(ctx, &enemy_hp_guage, (position + Vector2::new(10.0, 10.0),))?;
+    graphics::draw(ctx, &enemy_balance_guage, (position + Vector2::new(10.0, 40.0),))?;
+
+    if is_highlighted {
+        let enemy_highlight = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::stroke(2.0),
+            graphics::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 120.0,
+                h: 70.0
+            },
+            palette::GREY
+        )?;
+        graphics::draw(ctx, &enemy_highlight, (position,))?;
+    }
+
+    Ok(())
 }
 
 pub fn main() -> ggez::GameResult {
