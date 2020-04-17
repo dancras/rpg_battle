@@ -284,6 +284,37 @@ impl BattleState {
 
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
     }
+
+    fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+
+        let mut enemy_display_offset = 0.0;
+        for (i, enemy) in self.enemies.iter_mut().enumerate() {
+            draw_enemy_display(
+                ctx,
+                enemy,
+                Point2::new(590.0 - enemy_display_offset, 40.0),
+                i == self.target_enemy
+            )?;
+            enemy_display_offset += 140.0;
+        }
+
+        let mut player_display_offset = 0.0;
+        for (i, player) in self.players.iter_mut().enumerate() {
+            draw_player_display(
+                ctx,
+                player,
+                Point2::new(90.0 + player_display_offset, 490.0),
+                self.players_pending.len() > 0 && self.players_pending[0] == i
+            )?;
+            player_display_offset += 140.0;
+        }
+
+        let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
+
+        graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 400.0),))?;
+
+        Ok(())
+    }
 }
 
 enum BattleEvents {
@@ -439,32 +470,7 @@ impl event::EventHandler for MainState {
 
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
-        let mut enemy_display_offset = 0.0;
-
-        for (i, enemy) in self.battle.enemies.iter_mut().enumerate() {
-            draw_enemy_display(
-                ctx,
-                enemy,
-                Point2::new(590.0 - enemy_display_offset, 40.0),
-                i == self.battle.target_enemy
-            )?;
-            enemy_display_offset += 140.0;
-        }
-
-        let mut player_display_offset = 0.0;
-        for (i, player) in self.battle.players.iter_mut().enumerate() {
-            draw_player_display(
-                ctx,
-                player,
-                Point2::new(90.0 + player_display_offset, 490.0),
-                self.battle.players_pending.len() > 0 && self.battle.players_pending[0] == i
-            )?;
-            player_display_offset += 140.0;
-        }
-
-        let timeline_mesh = action_timeline::create_mesh(ctx, &self.battle.timeline)?;
-
-        graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 400.0),))?;
+        self.battle.draw(ctx)?;
 
         graphics::present(ctx)?;
         Ok(())
