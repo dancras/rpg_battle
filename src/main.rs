@@ -452,29 +452,14 @@ impl event::EventHandler for MainState {
         }
 
         let mut player_display_offset = 0.0;
-        for player in &self.battle.players {
-            let player_fatigue_guage = resource_guage::create_mesh(ctx, &player.fatigue_guage)?;
-            let player_balance_guage = balance_guage::create_mesh(ctx, &player.balance_guage)?;
-
-            graphics::draw(ctx, &player_fatigue_guage, (Point2::new(100.0 + player_display_offset, 500.0),))?;
-            graphics::draw(ctx, &player_balance_guage, (Point2::new(100.0 + player_display_offset, 530.0),))?;
-            player_display_offset += 140.0;
-        }
-
-        if self.battle.players_pending.len() > 0 {
-            let player_highlight = graphics::Mesh::new_rectangle(
+        for (i, player) in self.battle.players.iter_mut().enumerate() {
+            draw_player_display(
                 ctx,
-                graphics::DrawMode::stroke(2.0),
-                graphics::Rect {
-                    x: 0.0,
-                    y: 0.0,
-                    w: 120.0,
-                    h: 70.0
-                },
-                palette::YELLOW
+                player,
+                Point2::new(90.0 + player_display_offset, 490.0),
+                self.battle.players_pending.len() > 0 && self.battle.players_pending[0] == i
             )?;
-            let player_highlight_offset = self.battle.players_pending[0] as f32 * 140.0;
-            graphics::draw(ctx, &player_highlight, (Point2::new(90.0 + player_highlight_offset, 490.0),))?;
+            player_display_offset += 140.0;
         }
 
         let timeline_mesh = action_timeline::create_mesh(ctx, &self.battle.timeline)?;
@@ -510,6 +495,37 @@ fn draw_enemy_display(
             palette::GREY
         )?;
         graphics::draw(ctx, &enemy_highlight, (position,))?;
+    }
+
+    Ok(())
+}
+
+fn draw_player_display(
+    ctx: &mut ggez::Context,
+    player: &PlayerInBattle,
+    position: Point2<f32>,
+    is_highlighted: bool
+) -> ggez::GameResult {
+
+    let player_fatigue_guage = resource_guage::create_mesh(ctx, &player.fatigue_guage)?;
+    let player_balance_guage = balance_guage::create_mesh(ctx, &player.balance_guage)?;
+
+    graphics::draw(ctx, &player_fatigue_guage, (position + Vector2::new(10.0, 10.0),))?;
+    graphics::draw(ctx, &player_balance_guage, (position + Vector2::new(10.0, 40.0),))?;
+
+    if is_highlighted {
+        let player_highlight = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::stroke(2.0),
+            graphics::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 120.0,
+                h: 70.0
+            },
+            palette::YELLOW
+        )?;
+        graphics::draw(ctx, &player_highlight, (position,))?;
     }
 
     Ok(())
