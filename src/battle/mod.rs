@@ -17,13 +17,18 @@ const ACTION_POINTS_PER_SECOND: f32 = 60.0;
 const ATTACK_DAMAGE: i32 = 10;
 const ATTACK_ACTION_TIME: f32 = 250.0;
 const ATTACK_FATIGUE_COST: i32 = 5;
+const BLOCK_ACTION_TIME: f32 = 300.0;
+const BLOCK_FATIGUE_COST: i32 = 5;
+const BLOCK_HIT_TIME_PENALTY: f32 = 100.0;
 
 struct Player {
     color: Color,
     max_fatigue: i32,
     current_fatigue: i32,
     current_balance: f32,
-    next_action_time: f32
+    next_action_time: f32,
+    is_blocking: bool,
+    block_end_time: f32
 }
 
 struct PlayerInBattle {
@@ -111,7 +116,14 @@ impl BattleState {
                 }
                 let target_player = &mut self.players[target_player_index];
 
-                let dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
+                let mut dmg = calculate_balance_dmg(ATTACK_DAMAGE, enemy.stats.current_balance);
+
+                if target_player.stats.is_blocking {
+                    dmg = dmg / 4;
+                    target_player.stats.next_action_time += BLOCK_HIT_TIME_PENALTY;
+                    self.timeline.update_subject(target_player.timeline_handle, target_player.stats.next_action_time);
+                }
+
                 target_player.stats.current_fatigue -= dmg;
                 target_player.stats.current_fatigue = cmp::max(0, target_player.stats.current_fatigue);
                 notify(BattleEvents::PlayerTakesDamage(target_player_index));
@@ -131,6 +143,10 @@ impl BattleState {
                 if !has_item(&self.players_pending, &i) {
                     self.players_pending.push(i);
                 }
+            }
+
+            if player.stats.is_blocking && self.action_time > player.stats.block_end_time {
+                player.stats.is_blocking = false;
             }
 
             balance_guage::update(&mut player.balance_guage, delta);
@@ -197,7 +213,9 @@ impl BattleState {
                         max_fatigue: PLAYER_MAX_FATIGUE,
                         current_fatigue: PLAYER_MAX_FATIGUE,
                         current_balance: calculate_balance(),
-                        next_action_time: PLAYER_FIRST_ACTION
+                        next_action_time: PLAYER_FIRST_ACTION,
+                        is_blocking: false,
+                        block_end_time: 0.0
                     },
                     &mut timeline
                 ),
@@ -207,7 +225,9 @@ impl BattleState {
                         max_fatigue: PLAYER_MAX_FATIGUE,
                         current_fatigue: PLAYER_MAX_FATIGUE,
                         current_balance: calculate_balance(),
-                        next_action_time: PLAYER_FIRST_ACTION
+                        next_action_time: PLAYER_FIRST_ACTION,
+                        is_blocking: false,
+                        block_end_time: 0.0
                     },
                     &mut timeline
                 )
@@ -268,6 +288,23 @@ impl BattleState {
 
         attacking_player.balance_guage.update(attacking_player.stats.current_balance);
         attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
+
+        self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
+    }
+
+    pub fn player_block_move<F: FnMut(BattleEvents)>(&mut self, mut notify: F) {
+        let attacking_player_index = self.players_pending.remove(0);
+        let attacking_player = &mut self.players[attacking_player_index];
+        attacking_player.stats.next_action_time = self.action_time + BLOCK_ACTION_TIME;
+
+        attacking_player.stats.is_blocking = true;
+        attacking_player.stats.block_end_time = attacking_player.stats.next_action_time;
+
+        attacking_player.stats.current_fatigue -= BLOCK_FATIGUE_COST;
+        attacking_player.stats.current_balance = calculate_balance();
+
+        notify(BattleEvents::PlayerTakesDamage(attacking_player_index));
+        attacking_player.balance_guage.update(attacking_player.stats.current_balance);
 
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
     }
@@ -401,6 +438,21 @@ fn draw_player_display(
             palette::YELLOW
         )?;
         graphics::draw(ctx, &player_highlight, (position,))?;
+    }
+
+    if player.stats.is_blocking {
+        let block_icon = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            graphics::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 10.0,
+                h: 10.0
+            },
+            graphics::WHITE
+        )?;
+        graphics::draw(ctx, &block_icon, (position + Vector2::new(10.0, 80.0),))?;
     }
 
     Ok(())

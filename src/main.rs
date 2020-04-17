@@ -10,8 +10,6 @@ use rpg_battle::battle::{BattleState, BattleEvents};
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
-// TODO add a moves hotbar
-// TODO add a block move
 // TODO add some attack visualisation
 // TODO split battle module into more parts
 // TODO revise privacy settings for structs and members
@@ -76,6 +74,10 @@ impl event::EventHandler for MainState {
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
         if character == '1' && self.battle.player_move_pending() {
             self.battle.player_attack_move(battle_event_notifier(&mut self.events));
+        }
+
+        if character == '2' && self.battle.player_move_pending() {
+            self.battle.player_block_move(battle_event_notifier(&mut self.events));
         }
 
         self.flush_events();
