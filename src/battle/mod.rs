@@ -251,6 +251,15 @@ impl BattleState {
                         next_action_time: ENEMY_FIRST_ACTION
                     },
                     &mut timeline
+                ),
+                EnemyInBattle::new(
+                    Enemy {
+                        max_hp: ENEMY_MAX_HP,
+                        current_hp: ENEMY_MAX_HP,
+                        current_balance: calculate_balance(),
+                        next_action_time: ENEMY_FIRST_ACTION
+                    },
+                    &mut timeline
                 )
             ],
             hovered_enemy: None,
@@ -286,8 +295,8 @@ impl BattleState {
         attacking_player.stats.current_fatigue -= ATTACK_FATIGUE_COST;
         attacking_player.stats.current_balance = calculate_balance();
 
+        notify(BattleEvents::PlayerTakesDamage(attacking_player_index));
         attacking_player.balance_guage.update(attacking_player.stats.current_balance);
-        attacking_player.fatigue_guage.update(attacking_player.stats.current_fatigue as f32);
 
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
     }
