@@ -10,6 +10,9 @@ use rpg_battle::battle::{BattleState, BattleEvents};
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
+// TODO add a moves hotbar
+// TODO add a block move
+// TODO add some attack visualisation
 // TODO split battle module into more parts
 // TODO revise privacy settings for structs and members
 struct MainState {

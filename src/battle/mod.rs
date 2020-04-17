@@ -4,6 +4,7 @@ use rand::{random};
 use std::cmp;
 
 use crate::palette;
+use crate::hud::action_hotbar;
 use crate::hud::action_timeline::{self, ActionTimeline};
 use crate::hud::resource_guage::{self, ResourceGuage};
 use crate::hud::balance_guage::{self, BalanceGuage};
@@ -282,6 +283,10 @@ impl BattleState {
                 i == self.target_enemy
             )?;
             enemy_display_offset += 140.0;
+        }
+
+        if self.players_pending.len() > 0 {
+            action_hotbar::draw(ctx, Point2::new(100.0, 430.0))?;
         }
 
         let mut player_display_offset = 0.0;
