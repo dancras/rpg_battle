@@ -4,6 +4,7 @@ use rand::{random};
 use std::cmp;
 
 use crate::palette;
+use crate::hud::action_frame::{ActionFrame};
 use crate::hud::action_hotbar;
 use crate::hud::action_timeline::{self, ActionTimeline};
 use crate::hud::resource_guage::{self, ResourceGuage};
@@ -67,7 +68,8 @@ pub struct EnemyInBattle {
     pub stats: Enemy,
     hp_guage: ResourceGuage,
     balance_guage: BalanceGuage,
-    pub timeline_handle: i32
+    pub timeline_handle: i32,
+    action_frame: ActionFrame
 }
 
 impl EnemyInBattle {
@@ -83,7 +85,8 @@ impl EnemyInBattle {
                 palette::RED,
                 enemy.next_action_time
             ),
-            stats: enemy
+            stats: enemy,
+            action_frame: ActionFrame::new(palette::RED)
         }
     }
 }
@@ -106,6 +109,9 @@ impl BattleState {
         self.timeline.update(self.action_time);
 
         for enemy in &mut self.enemies {
+
+            enemy.action_frame.update_time(self.action_time / ACTION_POINTS_PER_SECOND);
+
             if enemy.stats.current_hp > 0 && self.action_time > enemy.stats.next_action_time {
 
                 // Enemy attack
@@ -131,6 +137,7 @@ impl BattleState {
                 enemy.stats.current_balance = calculate_balance();
                 enemy.stats.next_action_time = self.action_time + ATTACK_ACTION_TIME;
 
+                enemy.action_frame.activate("Attack");
                 enemy.balance_guage.update(enemy.stats.current_balance);
 
                 self.timeline.update_subject(enemy.timeline_handle, enemy.stats.next_action_time);
@@ -417,6 +424,8 @@ fn draw_enemy_display(
         )?;
         graphics::draw(ctx, &enemy_highlight, (position,))?;
     }
+
+    enemy.action_frame.draw(ctx, position + Vector2::new(30.0, 80.0))?;
 
     Ok(())
 }
