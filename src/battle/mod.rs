@@ -36,7 +36,8 @@ struct PlayerInBattle {
     stats: Player,
     fatigue_guage: ResourceGuage,
     balance_guage: BalanceGuage,
-    timeline_handle: i32
+    timeline_handle: i32,
+    action_frame: ActionFrame
 }
 
 impl PlayerInBattle {
@@ -52,6 +53,7 @@ impl PlayerInBattle {
                 player.color,
                 player.next_action_time
             ),
+            action_frame: ActionFrame::new(player.color),
             stats: player
         }
     }
@@ -127,6 +129,7 @@ impl BattleState {
                 if target_player.stats.is_blocking {
                     dmg = dmg / 4;
                     target_player.stats.next_action_time += BLOCK_HIT_TIME_PENALTY;
+                    target_player.action_frame.activate("Block");
                     self.timeline.update_subject(target_player.timeline_handle, target_player.stats.next_action_time);
                 }
 
@@ -145,6 +148,9 @@ impl BattleState {
         }
 
         for (i, player) in self.players.iter_mut().enumerate() {
+
+            player.action_frame.update_time(self.action_time / ACTION_POINTS_PER_SECOND);
+
             if player.stats.current_fatigue > 0 && self.action_time > player.stats.next_action_time {
                 // Queue up player for attack
                 if !has_item(&self.players_pending, &i) {
@@ -305,6 +311,7 @@ impl BattleState {
         notify(BattleEvents::PlayerTakesDamage(attacking_player_index));
         attacking_player.balance_guage.update(attacking_player.stats.current_balance);
 
+        attacking_player.action_frame.activate("Attack");
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
     }
 
@@ -472,6 +479,8 @@ fn draw_player_display(
         )?;
         graphics::draw(ctx, &block_icon, (position + Vector2::new(10.0, 80.0),))?;
     }
+
+    player.action_frame.draw(ctx, position + Vector2::new(30.0, -70.0))?;
 
     Ok(())
 }
