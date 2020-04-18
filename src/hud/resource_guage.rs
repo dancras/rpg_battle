@@ -25,7 +25,7 @@ impl ResourceGuage {
     }
 
     pub fn update(&mut self, new_value: f32) {
-        self.previous_value = self.value;
+        self.previous_value = self.display_value;
         self.value = new_value;
         self.delta = 0.0;
     }
