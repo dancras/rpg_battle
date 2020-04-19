@@ -4,6 +4,7 @@ use rand::{random};
 use std::cmp;
 
 use crate::palette;
+use crate::projector::{ProjectorTopLeft, ProjectorBottomLeft};
 use crate::hud::action_frame::{ActionFrame};
 use crate::hud::action_hotbar;
 use crate::hud::action_timeline::{self, ActionTimeline};
@@ -332,7 +333,7 @@ impl BattleState {
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
     }
 
-    pub fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+    pub fn draw(&mut self, ctx: &mut ggez::Context, scale: f32) -> ggez::GameResult {
 
         let mut enemy_display_offset = 0.0;
         for (i, enemy) in self.enemies.iter_mut().enumerate() {
@@ -351,13 +352,18 @@ impl BattleState {
 
         let mut player_display_offset = 0.0;
         for (i, player) in self.players.iter_mut().enumerate() {
+            let projector = ProjectorBottomLeft::new(
+                Point2::new(90.0 + player_display_offset, 900.0),
+                90.0,
+                scale
+            );
             draw_player_display(
                 ctx,
                 player,
-                Point2::new(90.0 + player_display_offset, 490.0),
+                &projector,
                 self.players_pending.len() > 0 && self.players_pending[0] == i
             )?;
-            player_display_offset += 140.0;
+            player_display_offset += projector.scale(140.0);
         }
 
         let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
@@ -412,8 +418,12 @@ fn draw_enemy_display(
     position: Point2<f32>,
     is_highlighted: bool
 ) -> ggez::GameResult {
-    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage)?;
-    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage)?;
+    let projector = ProjectorTopLeft::new(
+        Point2::new(0.0, 0.0),
+        1.0
+    );
+    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage, &projector)?;
+    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage, &projector)?;
     graphics::draw(ctx, &enemy_hp_guage, (position + Vector2::new(10.0, 10.0),))?;
     graphics::draw(ctx, &enemy_balance_guage, (position + Vector2::new(10.0, 40.0),))?;
 
@@ -432,7 +442,11 @@ fn draw_enemy_display(
         graphics::draw(ctx, &enemy_highlight, (position,))?;
     }
 
-    enemy.action_frame.draw(ctx, position + Vector2::new(30.0, 80.0))?;
+    let action_frame_projector = ProjectorTopLeft::new(
+        position + Vector2::new(30.0, 80.0),
+        1.0
+    );
+    enemy.action_frame.draw(ctx, &action_frame_projector)?;
 
     Ok(())
 }
@@ -440,15 +454,15 @@ fn draw_enemy_display(
 fn draw_player_display(
     ctx: &mut ggez::Context,
     player: &PlayerInBattle,
-    position: Point2<f32>,
+    project: &ProjectorBottomLeft,
     is_highlighted: bool
 ) -> ggez::GameResult {
 
-    let player_fatigue_guage = resource_guage::create_mesh(ctx, &player.fatigue_guage)?;
-    let player_balance_guage = balance_guage::create_mesh(ctx, &player.balance_guage)?;
+    let player_fatigue_guage = resource_guage::create_mesh(ctx, &player.fatigue_guage, &project.local())?;
+    let player_balance_guage = balance_guage::create_mesh(ctx, &player.balance_guage, &project.local())?;
 
-    graphics::draw(ctx, &player_fatigue_guage, (position + Vector2::new(10.0, 10.0),))?;
-    graphics::draw(ctx, &player_balance_guage, (position + Vector2::new(10.0, 40.0),))?;
+    graphics::draw(ctx, &player_fatigue_guage, (project.coords(10.0, 10.0),))?;
+    graphics::draw(ctx, &player_balance_guage, (project.coords(10.0, 40.0),))?;
 
     if is_highlighted {
         let player_highlight = graphics::Mesh::new_rectangle(
@@ -457,12 +471,16 @@ fn draw_player_display(
             graphics::Rect {
                 x: 0.0,
                 y: 0.0,
-                w: 120.0,
-                h: 70.0
+                w: project.scale(120.0),
+                h: project.scale(70.0)
             },
             palette::YELLOW
         )?;
-        graphics::draw(ctx, &player_highlight, (position,))?;
+        graphics::draw(
+            ctx,
+            &player_highlight,
+            (project.origin(),)
+        )?;
     }
 
     if player.stats.is_blocking {
@@ -472,15 +490,15 @@ fn draw_player_display(
             graphics::Rect {
                 x: 0.0,
                 y: 0.0,
-                w: 10.0,
-                h: 10.0
+                w: project.scale(10.0),
+                h: project.scale(10.0)
             },
             graphics::WHITE
         )?;
-        graphics::draw(ctx, &block_icon, (position + Vector2::new(10.0, 80.0),))?;
+        graphics::draw(ctx, &block_icon, (project.coords(10.0, 80.0),))?;
     }
 
-    player.action_frame.draw(ctx, position + Vector2::new(30.0, -70.0))?;
+    player.action_frame.draw(ctx, &project.local_relative(30.0, -70.0))?;
 
     Ok(())
 }

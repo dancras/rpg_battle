@@ -1,7 +1,8 @@
 use ezing;
 use ggez::{Context, GameResult};
 use ggez::graphics::{self, Mesh, MeshBuilder};
-use ggez::nalgebra::{Point2};
+
+use crate::projector::{ProjectorTopLeft};
 
 const ANIMATION_DURATION: f32 = 0.8;
 
@@ -40,7 +41,7 @@ pub fn update(viewmodel: &mut BalanceGuage, delta: f32) {
 
 }
 
-pub fn create_mesh(ctx: &mut Context, viewmodel: &BalanceGuage) -> GameResult<Mesh> {
+pub fn create_mesh(ctx: &mut Context, viewmodel: &BalanceGuage, project: &ProjectorTopLeft) -> GameResult<Mesh> {
 
     let offset = 92.0 * viewmodel.display_value;
 
@@ -50,16 +51,16 @@ pub fn create_mesh(ctx: &mut Context, viewmodel: &BalanceGuage) -> GameResult<Me
             graphics::Rect {
                 x: 0.0,
                 y: 0.0,
-                w: 100.0,
-                h: 20.0
+                w: project.scale(100.0),
+                h: project.scale(20.0)
             },
             graphics::WHITE,
         )
         .triangles(
             &[
-                Point2::new(offset + 4.0, 13.0),
-                Point2::new(offset + 8.0, 20.0),
-                Point2::new(offset, 20.0),
+                project.coords(offset + 4.0, 13.0),
+                project.coords(offset + 8.0, 20.0),
+                project.coords(offset, 20.0),
             ],
             graphics::WHITE,
         )?

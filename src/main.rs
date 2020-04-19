@@ -16,6 +16,7 @@ const RANDOMISE_INTERVAL: f32 = 2.0;
 //  - anchor rendering to viewport corners
 //  - all dimension values to be passed through a scaling function
 // TODO make important state changes wait for animation (eg end battle)
+// TODO consider remaining_update_time delta in the draw step
 // TODO split battle module into more parts
 // TODO revise privacy settings for structs and members
 struct MainState {
@@ -160,7 +161,7 @@ impl event::EventHandler for MainState {
 
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
-        self.battle.draw(ctx)?;
+        self.battle.draw(ctx, self.ui_scale)?;
 
         self.ui_scale_input.draw(ctx, Point2::new(500.0, 500.0))?;
 
