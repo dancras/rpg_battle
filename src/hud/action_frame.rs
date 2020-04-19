@@ -2,9 +2,10 @@ use ggez::{Context, GameResult};
 use ggez::graphics::{self, Color, Font};
 use nalgebra::{Point2, Vector2};
 
+use crate::palette::{darker};
+
 const FIRST_FRAME_DURATION: f32 = 0.4;
 const SECOND_FRAME_DURATION: f32 = 0.2;
-const DARKER_FRAME_ADJUSTMENT: f32 = 0.2;
 
 pub struct ActionFrame {
     time: f32,
@@ -12,23 +13,6 @@ pub struct ActionFrame {
     second_frame_timeout: f32,
     frame_text: String,
     frame_color: Color
-}
-
-fn darken_tint(tint: f32) -> f32 {
-    if tint <= DARKER_FRAME_ADJUSTMENT {
-        0.0
-    } else {
-        tint - DARKER_FRAME_ADJUSTMENT
-    }
-}
-
-fn darker(color: Color) -> Color {
-    Color::new(
-        darken_tint(color.r),
-        darken_tint(color.g),
-        darken_tint(color.b),
-        color.a
-    )
 }
 
 impl ActionFrame {
