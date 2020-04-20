@@ -65,6 +65,15 @@ impl Projector {
         }
     }
 
+    pub fn top_right(&self, width: f32) -> Projector {
+        Projector {
+            anchor_point: self.anchor_point + Vector2::new(self.width, 0.0) - self.scale(Vector2::new(width, 0.0)),
+            scale: self.scale,
+            width: width,
+            height: self.height
+        }
+    }
+
     pub fn to_local_x(&self, x: f32) -> f32 {
         x - self.origin().coords.x
     }

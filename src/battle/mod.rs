@@ -1,5 +1,5 @@
 use ggez::graphics::{self, Color};
-use nalgebra::{Point2, Vector2};
+use nalgebra::{Point2};
 use rand::{random};
 use std::cmp;
 
@@ -335,15 +335,13 @@ impl BattleState {
 
     pub fn draw(&mut self, ctx: &mut ggez::Context, projector: &Projector) -> ggez::GameResult {
 
-        let mut enemy_display_offset = 0.0;
         for (i, enemy) in self.enemies.iter_mut().enumerate() {
             draw_enemy_display(
                 ctx,
                 enemy,
-                Point2::new(590.0 - enemy_display_offset, 40.0),
+                &projector.top_right((i + 1) as f32 * 140.0),
                 i == self.target_enemy
             )?;
-            enemy_display_offset += 140.0;
         }
 
         if self.players_pending.len() > 0 {
@@ -352,12 +350,11 @@ impl BattleState {
 
         let mut player_display_offset = 0.0;
         for (i, player) in self.players.iter_mut().enumerate() {
-            let player_area_projector = projector.bottom_left(90.0).local_relative(90.0 + player_display_offset, 0.0);
-
             draw_player_display(
                 ctx,
                 player,
-                &player_area_projector,
+                &projector.bottom_left(90.0)
+                    .local_relative(90.0 + player_display_offset, 0.0),
                 self.players_pending.len() > 0 && self.players_pending[0] == i
             )?;
             player_display_offset += 140.0;
@@ -412,19 +409,13 @@ fn has_item<T: PartialEq>(list: &Vec<T>, search_item: &T) -> bool {
 fn draw_enemy_display(
     ctx: &mut ggez::Context,
     enemy: &EnemyInBattle,
-    position: Point2<f32>,
+    project: &Projector,
     is_highlighted: bool
 ) -> ggez::GameResult {
-    let projector = Projector::new(
-        Point2::new(0.0, 0.0),
-        1.0,
-        0.0,
-        0.0
-    );
-    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage, &projector)?;
-    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage, &projector)?;
-    graphics::draw(ctx, &enemy_hp_guage, (position + Vector2::new(10.0, 10.0),))?;
-    graphics::draw(ctx, &enemy_balance_guage, (position + Vector2::new(10.0, 40.0),))?;
+    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage, &project)?;
+    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage, &project)?;
+    graphics::draw(ctx, &enemy_hp_guage, (project.coords(10.0, 10.0),))?;
+    graphics::draw(ctx, &enemy_balance_guage, (project.coords(10.0, 40.0),))?;
 
     if is_highlighted {
         let enemy_highlight = graphics::Mesh::new_rectangle(
@@ -433,21 +424,19 @@ fn draw_enemy_display(
             graphics::Rect {
                 x: 0.0,
                 y: 0.0,
-                w: 120.0,
-                h: 70.0
+                w: project.scale(120.0),
+                h: project.scale(70.0)
             },
             palette::GREY
         )?;
-        graphics::draw(ctx, &enemy_highlight, (position,))?;
+        graphics::draw(
+            ctx,
+            &enemy_highlight,
+            (project.origin(),)
+        )?;
     }
 
-    let action_frame_projector = Projector::new(
-        position + Vector2::new(30.0, 80.0),
-        1.0,
-        0.0,
-        0.0
-    );
-    enemy.action_frame.draw(ctx, &action_frame_projector)?;
+    enemy.action_frame.draw(ctx, &project.local_relative(30.0, 80.0))?;
 
     Ok(())
 }

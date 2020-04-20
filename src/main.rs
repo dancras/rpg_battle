@@ -134,12 +134,20 @@ impl event::EventHandler for MainState {
         _dx: f32,
         _dy: f32
     ) {
+        // TODO make battle responsible for this
+        let projector = Projector::new(
+            Point2::new(0.0, 0.0),
+            self.ui_scale,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT
+        );
+
         self.battle.timeline.highlighted_subject = None;
         self.battle.hovered_enemy = None;
 
-        if y < 110.0 {
+        if y < projector.scale(70.0) {
             for (i, enemy) in self.battle.enemies.iter().enumerate().rev() {
-                if x > 600.0 - 140.0 * i as f32 && enemy.stats.current_hp > 0 {
+                if projector.top_right((i + 1) as f32 * 140.0).to_local_x(x) > 0.0 && enemy.stats.current_hp > 0 {
                     self.battle.hovered_enemy = Some(i);
                     self.battle.timeline.highlighted_subject = Some(enemy.timeline_handle);
                 }
