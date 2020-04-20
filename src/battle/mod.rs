@@ -420,7 +420,9 @@ fn draw_enemy_display(
 ) -> ggez::GameResult {
     let projector = ProjectorTopLeft::new(
         Point2::new(0.0, 0.0),
-        1.0
+        1.0,
+        0.0,
+        0.0
     );
     let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage, &projector)?;
     let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage, &projector)?;
@@ -444,7 +446,9 @@ fn draw_enemy_display(
 
     let action_frame_projector = ProjectorTopLeft::new(
         position + Vector2::new(30.0, 80.0),
-        1.0
+        1.0,
+        0.0,
+        0.0
     );
     enemy.action_frame.draw(ctx, &action_frame_projector)?;
 

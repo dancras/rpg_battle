@@ -10,6 +10,8 @@ use rpg_battle::battle::{BattleState, BattleEvents};
 use rpg_battle::ui::options::{Options};
 use rpg_battle::projector::{ProjectorTopLeft};
 
+const SCREEN_WIDTH: f32 = 1440.0;
+const SCREEN_HEIGHT: f32 = 900.0;
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
@@ -97,16 +99,21 @@ impl event::EventHandler for MainState {
     fn mouse_button_down_event(
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
-        let projector = ProjectorTopLeft::new(Point2::new(0.0, 0.0), self.ui_scale);
+        let projector = ProjectorTopLeft::new(
+            Point2::new(0.0, 0.0),
+            self.ui_scale,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT
+        );
 
         if let Some(i) = self.battle.hovered_enemy {
             self.battle.target_enemy = i;
         }
 
-        let ui_scale_input_projector = &projector.local_relative(500.0, 500.0);
+        let ui_scale_input_projector = &projector.centered(170.0, 20.0);
         let input_value = self.ui_scale_input.handle_mouse_down(
-            x - ui_scale_input_projector.scale(500.0),
-            y - ui_scale_input_projector.scale(500.0),
+            ui_scale_input_projector.to_local_x(x),
+            ui_scale_input_projector.to_local_y(y),
             &ui_scale_input_projector
         );
 
@@ -163,7 +170,12 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
-        let projector = ProjectorTopLeft::new(Point2::new(0.0, 0.0), self.ui_scale);
+        let projector = ProjectorTopLeft::new(
+            Point2::new(0.0, 0.0),
+            self.ui_scale,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT
+        );
 
         let mut hello_world = graphics::Text::new(format!("Scale {}", self.ui_scale));
 
@@ -173,7 +185,7 @@ impl event::EventHandler for MainState {
 
         self.battle.draw(ctx, self.ui_scale)?;
 
-        self.ui_scale_input.draw(ctx, &projector.local_relative(500.0, 500.0))?;
+        self.ui_scale_input.draw(ctx, &projector.centered(170.0, 20.0))?;
 
         graphics::present(ctx)?;
         Ok(())
@@ -186,7 +198,7 @@ pub fn main() -> ggez::GameResult {
     let (ctx, event_loop) = &mut ContextBuilder::new("dancras/rpg_battle", "dancras")
         .window_mode(
             WindowMode::default()
-                .dimensions(1440.0, 900.0)
+                .dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)
                 .fullscreen_type(FullscreenType::True)
         )
         .build()
