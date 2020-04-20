@@ -360,7 +360,7 @@ impl BattleState {
                 &player_area_projector,
                 self.players_pending.len() > 0 && self.players_pending[0] == i
             )?;
-            player_display_offset += projector.scale(140.0);
+            player_display_offset += 140.0;
         }
 
         let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
