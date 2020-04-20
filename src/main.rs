@@ -8,6 +8,7 @@ use nalgebra::{Point2};
 
 use rpg_battle::battle::{BattleState, BattleEvents};
 use rpg_battle::ui::options::{Options};
+use rpg_battle::projector::{ProjectorTopLeft};
 
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
@@ -96,11 +97,18 @@ impl event::EventHandler for MainState {
     fn mouse_button_down_event(
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
+        let projector = ProjectorTopLeft::new(Point2::new(0.0, 0.0), self.ui_scale);
+
         if let Some(i) = self.battle.hovered_enemy {
             self.battle.target_enemy = i;
         }
 
-        let input_value = self.ui_scale_input.handle_mouse_down(x - 500.0, y - 500.0);
+        let ui_scale_input_projector = &projector.local_relative(500.0, 500.0);
+        let input_value = self.ui_scale_input.handle_mouse_down(
+            x - ui_scale_input_projector.scale(500.0),
+            y - ui_scale_input_projector.scale(500.0),
+            &ui_scale_input_projector
+        );
 
         self.ui_scale = match input_value {
             0 => 0.7,
@@ -155,6 +163,8 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
+        let projector = ProjectorTopLeft::new(Point2::new(0.0, 0.0), self.ui_scale);
+
         let mut hello_world = graphics::Text::new(format!("Scale {}", self.ui_scale));
 
         hello_world.set_font(self.font, graphics::Scale::uniform(graphics::DEFAULT_FONT_SCALE * 2.0));
@@ -163,7 +173,7 @@ impl event::EventHandler for MainState {
 
         self.battle.draw(ctx, self.ui_scale)?;
 
-        self.ui_scale_input.draw(ctx, Point2::new(500.0, 500.0))?;
+        self.ui_scale_input.draw(ctx, &projector.local_relative(500.0, 500.0))?;
 
         graphics::present(ctx)?;
         Ok(())
