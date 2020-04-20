@@ -8,7 +8,7 @@ use nalgebra::{Point2};
 
 use rpg_battle::battle::{BattleState, BattleEvents};
 use rpg_battle::ui::options::{Options};
-use rpg_battle::projector::{ProjectorTopLeft};
+use rpg_battle::projector::{Projector};
 
 const SCREEN_WIDTH: f32 = 1440.0;
 const SCREEN_HEIGHT: f32 = 900.0;
@@ -99,7 +99,7 @@ impl event::EventHandler for MainState {
     fn mouse_button_down_event(
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
-        let projector = ProjectorTopLeft::new(
+        let projector = Projector::new(
             Point2::new(0.0, 0.0),
             self.ui_scale,
             SCREEN_WIDTH,
@@ -170,7 +170,7 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
-        let projector = ProjectorTopLeft::new(
+        let projector = Projector::new(
             Point2::new(0.0, 0.0),
             self.ui_scale,
             SCREEN_WIDTH,
@@ -183,7 +183,7 @@ impl event::EventHandler for MainState {
 
         graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
 
-        self.battle.draw(ctx, self.ui_scale)?;
+        self.battle.draw(ctx, &projector)?;
 
         self.ui_scale_input.draw(ctx, &projector.centered(170.0, 20.0))?;
 

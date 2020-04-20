@@ -2,7 +2,7 @@ use ezing;
 use ggez::{Context, GameResult};
 use ggez::graphics::{self, Mesh, MeshBuilder};
 
-use crate::projector::{ProjectorTopLeft};
+use crate::projector::{Projector};
 
 const ANIMATION_DURATION: f32 = 0.8;
 
@@ -41,7 +41,7 @@ pub fn update(viewmodel: &mut BalanceGuage, delta: f32) {
 
 }
 
-pub fn create_mesh(ctx: &mut Context, viewmodel: &BalanceGuage, project: &ProjectorTopLeft) -> GameResult<Mesh> {
+pub fn create_mesh(ctx: &mut Context, viewmodel: &BalanceGuage, project: &Projector) -> GameResult<Mesh> {
 
     let offset = 92.0 * viewmodel.display_value;
 

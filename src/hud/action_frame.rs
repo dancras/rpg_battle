@@ -3,7 +3,7 @@ use ggez::graphics::{self, Color, Font};
 use nalgebra::{Vector2};
 
 use crate::palette::{darker};
-use crate::projector::{ProjectorTopLeft};
+use crate::projector::{Projector};
 
 const FIRST_FRAME_DURATION: f32 = 0.4;
 const SECOND_FRAME_DURATION: f32 = 0.2;
@@ -37,7 +37,7 @@ impl ActionFrame {
         self.frame_text = text.into();
     }
 
-    pub fn draw(&self, ctx: &mut Context, project: &ProjectorTopLeft) -> GameResult {
+    pub fn draw(&self, ctx: &mut Context, project: &Projector) -> GameResult {
 
         if self.time < self.first_frame_timeout {
             self.draw_first_frame(ctx, project)?;
@@ -48,12 +48,12 @@ impl ActionFrame {
         Ok(())
     }
 
-    fn draw_first_frame(&self, ctx: &mut Context, project: &ProjectorTopLeft) -> GameResult {
+    fn draw_first_frame(&self, ctx: &mut Context, project: &Projector) -> GameResult {
         self.draw_plain_frame(ctx, self.frame_color, project)?;
         Ok(())
     }
 
-    fn draw_second_frame(&self, ctx: &mut Context, project: &ProjectorTopLeft) -> GameResult {
+    fn draw_second_frame(&self, ctx: &mut Context, project: &Projector) -> GameResult {
         self.draw_plain_frame(ctx, darker(self.frame_color), project)?;
 
         let mut text = graphics::Text::new(self.frame_text.clone());
@@ -69,7 +69,7 @@ impl ActionFrame {
         Ok(())
     }
 
-    fn draw_plain_frame(&self, ctx: &mut Context, color: Color, project: &ProjectorTopLeft) -> GameResult {
+    fn draw_plain_frame(&self, ctx: &mut Context, color: Color, project: &Projector) -> GameResult {
         let frame = graphics::Mesh::new_rectangle(
             ctx,
             graphics::DrawMode::fill(),

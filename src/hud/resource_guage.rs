@@ -1,7 +1,7 @@
 use ggez::{Context, GameResult};
 use ggez::graphics::{self, Color, Mesh, MeshBuilder};
 
-use crate::projector::{ProjectorTopLeft};
+use crate::projector::{Projector};
 
 const ANIMATION_DURATION: f32 = 0.8;
 
@@ -44,7 +44,7 @@ pub fn update(viewmodel: &mut ResourceGuage, delta: f32) {
 
 }
 
-pub fn create_mesh(ctx: &mut Context, viewmodel: &ResourceGuage, project: &ProjectorTopLeft) -> GameResult<Mesh> {
+pub fn create_mesh(ctx: &mut Context, viewmodel: &ResourceGuage, project: &Projector) -> GameResult<Mesh> {
     MeshBuilder::new()
         .rectangle(
             graphics::DrawMode::stroke(2.0),

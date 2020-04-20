@@ -4,7 +4,7 @@ use rand::{random};
 use std::cmp;
 
 use crate::palette;
-use crate::projector::{ProjectorTopLeft, ProjectorBottomLeft};
+use crate::projector::{Projector};
 use crate::hud::action_frame::{ActionFrame};
 use crate::hud::action_hotbar;
 use crate::hud::action_timeline::{self, ActionTimeline};
@@ -333,7 +333,7 @@ impl BattleState {
         self.timeline.update_subject(attacking_player.timeline_handle, attacking_player.stats.next_action_time);
     }
 
-    pub fn draw(&mut self, ctx: &mut ggez::Context, scale: f32) -> ggez::GameResult {
+    pub fn draw(&mut self, ctx: &mut ggez::Context, projector: &Projector) -> ggez::GameResult {
 
         let mut enemy_display_offset = 0.0;
         for (i, enemy) in self.enemies.iter_mut().enumerate() {
@@ -352,15 +352,12 @@ impl BattleState {
 
         let mut player_display_offset = 0.0;
         for (i, player) in self.players.iter_mut().enumerate() {
-            let projector = ProjectorBottomLeft::new(
-                Point2::new(90.0 + player_display_offset, 900.0),
-                90.0,
-                scale
-            );
+            let player_area_projector = projector.bottom_left(90.0).local_relative(90.0 + player_display_offset, 0.0);
+
             draw_player_display(
                 ctx,
                 player,
-                &projector,
+                &player_area_projector,
                 self.players_pending.len() > 0 && self.players_pending[0] == i
             )?;
             player_display_offset += projector.scale(140.0);
@@ -418,7 +415,7 @@ fn draw_enemy_display(
     position: Point2<f32>,
     is_highlighted: bool
 ) -> ggez::GameResult {
-    let projector = ProjectorTopLeft::new(
+    let projector = Projector::new(
         Point2::new(0.0, 0.0),
         1.0,
         0.0,
@@ -444,7 +441,7 @@ fn draw_enemy_display(
         graphics::draw(ctx, &enemy_highlight, (position,))?;
     }
 
-    let action_frame_projector = ProjectorTopLeft::new(
+    let action_frame_projector = Projector::new(
         position + Vector2::new(30.0, 80.0),
         1.0,
         0.0,
@@ -458,7 +455,7 @@ fn draw_enemy_display(
 fn draw_player_display(
     ctx: &mut ggez::Context,
     player: &PlayerInBattle,
-    project: &ProjectorBottomLeft,
+    project: &Projector,
     is_highlighted: bool
 ) -> ggez::GameResult {
 

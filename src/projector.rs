@@ -3,19 +3,14 @@ use std::ops::Mul;
 
 pub const PROJECTOR_UNUSED: f32 = 0.0;
 
-pub struct ProjectorTopLeft {
+pub struct Projector {
     anchor_point: Point2<f32>,
     scale: f32,
     width: f32,
     height: f32
 }
 
-fn scale_value(value: f32, scale: f32) -> f32 {
-    // todo rounding
-    value * scale
-}
-
-impl ProjectorTopLeft {
+impl Projector {
     pub fn new(
         anchor_point: Point2<f32>,
         scale: f32,
@@ -30,8 +25,8 @@ impl ProjectorTopLeft {
         }
     }
 
-    pub fn local(&self) -> ProjectorTopLeft {
-        ProjectorTopLeft {
+    pub fn local(&self) -> Projector {
+        Projector {
             anchor_point: Point2::new(0.0, 0.0),
             scale: self.scale,
             width: 0.0,
@@ -39,24 +34,33 @@ impl ProjectorTopLeft {
         }
     }
 
-    pub fn local_relative(&self, x: f32, y: f32) -> ProjectorTopLeft {
-        ProjectorTopLeft {
-            anchor_point: self.origin() + Vector2::new(self.scale(x), self.scale(y)),
+    pub fn local_relative(&self, x: f32, y: f32) -> Projector {
+        Projector {
+            anchor_point: self.origin() + self.scale(Vector2::new(x, y)),
             scale: self.scale,
             width: 0.0,
             height: 0.0
         }
     }
 
-    pub fn centered(&self, width: f32, height: f32) -> ProjectorTopLeft {
+    pub fn centered(&self, width: f32, height: f32) -> Projector {
 
         let midpoint = self.origin() + Vector2::new(self.width, self.height) / 2.0;
         let centering_translation = self.scale(Vector2::new(width, height) / 2.0);
 
-        ProjectorTopLeft {
+        Projector {
             anchor_point: midpoint - centering_translation,
             scale: self.scale,
             width: width,
+            height: height
+        }
+    }
+
+    pub fn bottom_left(&self, height: f32) -> Projector {
+        Projector {
+            anchor_point: self.anchor_point + Vector2::new(0.0, self.height) - self.scale(Vector2::new(0.0, height)),
+            scale: self.scale,
+            width: self.width,
             height: height
         }
     }
@@ -80,63 +84,5 @@ impl ProjectorTopLeft {
 
     pub fn coords(&self, x: f32, y: f32) -> Point2<f32> {
         self.origin() + Vector2::new(self.scale(x), self.scale(y))
-    }
-}
-
-pub struct ProjectorBottomLeft {
-    anchor_point: Point2<f32>,
-    scaled_height: f32,
-    scale: f32
-}
-
-impl ProjectorBottomLeft {
-    pub fn new(
-        anchor_point: Point2<f32>,
-        height: f32,
-        scale: f32
-    ) -> Self {
-        Self {
-            anchor_point: anchor_point,
-            scaled_height: scale_value(height, scale),
-            scale: scale
-        }
-    }
-
-    pub fn local(&self) -> ProjectorTopLeft {
-        ProjectorTopLeft {
-            anchor_point: Point2::new(0.0, 0.0),
-            scale: self.scale,
-            width: 0.0,
-            height: 0.0
-        }
-    }
-
-    pub fn local_relative(&self, x: f32, y: f32) -> ProjectorTopLeft {
-        ProjectorTopLeft {
-            anchor_point: self.origin() + Vector2::new(self.scale(x), self.scale(y)),
-            scale: self.scale,
-            width: 0.0,
-            height: 0.0
-        }
-    }
-
-    pub fn origin(&self) -> Point2<f32> {
-        self.anchor_point - Vector2::new(0.0, self.scaled_height)
-    }
-
-    pub fn scale(&self, value: f32) -> f32 {
-        scale_value(value, self.scale)
-    }
-
-    pub fn coord(&self, value: f32) -> f32 {
-        self.anchor_point.coords.y - self.scaled_height + self.scale(value)
-    }
-
-    pub fn coords(&self, x: f32, y: f32) -> Point2<f32> {
-        self.origin() + Vector2::new(self.scale(x), self.scale(y))
-    }
-
-    pub fn point(&self, point: Point2<f32>) -> Point2<f32> {
-        self.origin() + Vector2::new(self.scale(point.coords.x), self.scale(point.coords.y))
     }
 }

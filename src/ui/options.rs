@@ -2,7 +2,7 @@ use ggez::{Context, GameResult};
 use ggez::graphics::{self, Mesh, MeshBuilder};
 
 use crate::palette::{self, darker};
-use crate::projector::{ProjectorTopLeft};
+use crate::projector::{Projector};
 
 pub struct Options {
     options: i16,
@@ -24,7 +24,7 @@ impl Options {
         &mut self,
         x: f32,
         y: f32,
-        project: &ProjectorTopLeft
+        project: &Projector
     ) -> i16 {
         if y > 0.0 && y < project.scale(20.0) && x > 0.0 && x % project.scale(30.0) < project.scale(20.0) {
             let possible_option = x as i32 / project.scale(30.0) as i32;
@@ -37,7 +37,7 @@ impl Options {
         self.current_option
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, project: &ProjectorTopLeft) -> GameResult {
+    pub fn draw(&mut self, ctx: &mut Context, project: &Projector) -> GameResult {
 
         let mesh_result = match self.cached_mesh.take() {
             Some(m) => Ok(m),
