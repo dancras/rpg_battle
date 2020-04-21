@@ -436,8 +436,8 @@ fn draw_enemy_display(
     project: &Projector,
     is_highlighted: bool
 ) -> ggez::GameResult {
-    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage, &project)?;
-    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage, &project)?;
+    let enemy_hp_guage = resource_guage::create_mesh(ctx, &enemy.hp_guage, &project.local())?;
+    let enemy_balance_guage = balance_guage::create_mesh(ctx, &enemy.balance_guage, &project.local())?;
     graphics::draw(ctx, &enemy_hp_guage, (project.coords(10.0, 10.0),))?;
     graphics::draw(ctx, &enemy_balance_guage, (project.coords(10.0, 40.0),))?;
 
