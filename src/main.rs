@@ -99,16 +99,18 @@ impl event::EventHandler for MainState {
     fn mouse_button_down_event(
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
+        // Select hovered enemy
+        if let Some(i) = self.battle.hovered_enemy {
+            self.battle.target_enemy = i;
+        }
+
+        // Update UI scale input
         let projector = Projector::new(
             Point2::new(0.0, 0.0),
             self.ui_scale,
             SCREEN_WIDTH,
             SCREEN_HEIGHT
         );
-
-        if let Some(i) = self.battle.hovered_enemy {
-            self.battle.target_enemy = i;
-        }
 
         let ui_scale_input_projector = &projector.centered(170.0, 20.0);
         let input_value = self.ui_scale_input.handle_mouse_down(
@@ -142,17 +144,7 @@ impl event::EventHandler for MainState {
             SCREEN_HEIGHT
         );
 
-        self.battle.timeline.highlighted_subject = None;
-        self.battle.hovered_enemy = None;
-
-        if y < projector.scale(70.0) {
-            for (i, enemy) in self.battle.enemies.iter().enumerate().rev() {
-                if projector.top_right((i + 1) as f32 * 140.0).to_local_x(x) > 0.0 && enemy.stats.current_hp > 0 {
-                    self.battle.hovered_enemy = Some(i);
-                    self.battle.timeline.highlighted_subject = Some(enemy.timeline_handle);
-                }
-            }
-        }
+        self.battle.handle_mouse_move(x, y, &projector);
     }
 
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {

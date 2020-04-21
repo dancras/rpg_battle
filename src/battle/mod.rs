@@ -106,6 +106,20 @@ pub struct BattleState {
 
 impl BattleState {
 
+    pub fn handle_mouse_move(&mut self, x: f32, y: f32, projector: &Projector) {
+        self.timeline.highlighted_subject = None;
+        self.hovered_enemy = None;
+
+        if y < projector.scale(70.0) {
+            for (i, enemy) in self.enemies.iter().enumerate().rev() {
+                if projector.top_right((i + 1) as f32 * 140.0).to_local_x(x) > 0.0 && enemy.stats.current_hp > 0 {
+                    self.hovered_enemy = Some(i);
+                    self.timeline.highlighted_subject = Some(enemy.timeline_handle);
+                }
+            }
+        }
+    }
+
     pub fn tick<F: FnMut(BattleEvents)>(&mut self, delta: f32, mut notify: F) {
 
         self.action_time += ACTION_POINTS_PER_SECOND * delta;
