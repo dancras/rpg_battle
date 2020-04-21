@@ -56,6 +56,19 @@ impl Projector {
         }
     }
 
+    pub fn centered_horizontal(&self, width: f32) -> Projector {
+
+        let midpoint = self.origin() + Vector2::new(self.width / 2.0, 0.0);
+        let centering_translation = self.scale(Vector2::new(width / 2.0, 0.0));
+
+        Projector {
+            anchor_point: midpoint - centering_translation,
+            scale: self.scale,
+            width: width,
+            height: self.height
+        }
+    }
+
     pub fn bottom_left(&self, height: f32) -> Projector {
         Projector {
             anchor_point: self.anchor_point + Vector2::new(0.0, self.height) - self.scale(Vector2::new(0.0, height)),

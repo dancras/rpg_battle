@@ -359,7 +359,10 @@ impl BattleState {
         }
 
         if self.players_pending.len() > 0 {
-            action_hotbar::draw(ctx, Point2::new(100.0, 430.0))?;
+            action_hotbar::draw(
+                ctx,
+                &projector.bottom_left(150.0).centered_horizontal(490.0)
+            )?;
         }
 
         let mut player_display_offset = 0.0;

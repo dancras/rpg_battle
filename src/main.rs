@@ -136,7 +136,6 @@ impl event::EventHandler for MainState {
         _dx: f32,
         _dy: f32
     ) {
-        // TODO make battle responsible for this
         let projector = Projector::new(
             Point2::new(0.0, 0.0),
             self.ui_scale,
