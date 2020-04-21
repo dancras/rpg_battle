@@ -25,7 +25,8 @@ struct MainState {
     battle: BattleState,
     events: Vec<MainEvents>,
     ui_scale: f32,
-    ui_scale_input: Options
+    ui_scale_input: Options,
+    display_settings: bool
 }
 
 
@@ -55,7 +56,8 @@ impl MainState {
             battle: BattleState::new(),
             events: Vec::new(),
             ui_scale: 1.0,
-            ui_scale_input: Options::new(5, 2)
+            ui_scale_input: Options::new(5, 2),
+            display_settings: false
         };
 
         Ok(s)
@@ -90,6 +92,10 @@ impl event::EventHandler for MainState {
             self.battle.player_block_move(battle_event_notifier(&mut self.events));
         }
 
+        if character == 's' {
+            self.display_settings = !self.display_settings;
+        }
+
         self.flush_events();
     }
 
@@ -102,27 +108,30 @@ impl event::EventHandler for MainState {
         }
 
         // Update UI scale input
-        let projector = Projector::new(
-            Point2::new(0.0, 0.0),
-            self.ui_scale,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT
-        ).margins(90.0, 20.0);
+        if self.display_settings {
+            let projector = Projector::new(
+                Point2::new(0.0, 0.0),
+                self.ui_scale,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT
+            ).margins(90.0, 20.0);
 
-        let ui_scale_input_projector = &projector.centered(170.0, 20.0);
-        let input_value = self.ui_scale_input.handle_mouse_down(
-            ui_scale_input_projector.to_local_x(x),
-            ui_scale_input_projector.to_local_y(y),
-            &ui_scale_input_projector
-        );
+            let settings_projector = projector.centered(300.0, 20.0);
+            let ui_scale_input_projector = settings_projector.top_right(170.0);
+            let input_value = self.ui_scale_input.handle_mouse_down(
+                ui_scale_input_projector.to_local_x(x),
+                ui_scale_input_projector.to_local_y(y),
+                &ui_scale_input_projector
+            );
 
-        self.ui_scale = match input_value {
-            0 => 0.7,
-            1 => 0.9,
-            3 => 1.2,
-            4 => 1.5,
-            _ => 1.0
-        };
+            self.ui_scale = match input_value {
+                0 => 0.7,
+                1 => 0.9,
+                3 => 1.2,
+                4 => 1.5,
+                _ => 1.0
+            };
+        }
     }
 
     fn mouse_motion_event(
@@ -173,15 +182,16 @@ impl event::EventHandler for MainState {
             SCREEN_HEIGHT
         ).margins(90.0, 20.0);
 
-        let mut hello_world = graphics::Text::new(format!("Scale {}", self.ui_scale));
-
-        hello_world.set_font(self.font, graphics::Scale::uniform(graphics::DEFAULT_FONT_SCALE * 2.0));
-
-        graphics::draw(ctx, &hello_world, (Point2::new(100.0, 0.0),))?;
-
         self.battle.draw(ctx, &projector)?;
 
-        self.ui_scale_input.draw(ctx, &projector.centered(170.0, 20.0))?;
+        if self.display_settings {
+            let settings_projector = projector.centered(300.0, 20.0);
+            let mut ui_scale_text = graphics::Text::new(format!("Scale {}", self.ui_scale));
+            ui_scale_text.set_font(self.font, graphics::Scale::uniform(settings_projector.scale(graphics::DEFAULT_FONT_SCALE * 2.0)));
+
+            graphics::draw(ctx, &ui_scale_text, (settings_projector.origin(),))?;
+            self.ui_scale_input.draw(ctx, &settings_projector.top_right(170.0))?;
+        }
 
         graphics::present(ctx)?;
         Ok(())
