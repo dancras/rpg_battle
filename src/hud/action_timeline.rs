@@ -3,8 +3,6 @@ use ggez::graphics::{self, Color, Mesh, MeshBuilder};
 use ggez::nalgebra::{Point2};
 use std::collections::HashMap;
 
-const ACTION_POINTS_PER_SECOND: f32 = 60.0;
-
 pub struct ActionTimeline {
     next_subject_id: i32,
     time: f32,
@@ -79,10 +77,6 @@ impl ActionTimeline {
     }
 }
 
-pub fn update(viewmodel: &mut ActionTimeline, delta: f32) {
-    viewmodel.time += ACTION_POINTS_PER_SECOND * delta;
-}
-
 pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<Mesh> {
 
     let mut ruler = &mut MeshBuilder::new();
@@ -145,6 +139,6 @@ pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<
             if viewmodel.highlighted_subject == Some(*id) { graphics::WHITE } else { viewmodel.subject_colors[id] }
         );
     }
-    
+
     return ruler.build(ctx);
 }
