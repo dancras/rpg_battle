@@ -60,8 +60,8 @@ impl Projector {
         Projector {
             anchor_point: midpoint - centering_translation,
             scale: self.scale,
-            width: width,
-            height: height
+            width: self.scale(width),
+            height: self.scale(height)
         }
     }
 
@@ -73,7 +73,7 @@ impl Projector {
         Projector {
             anchor_point: midpoint - centering_translation,
             scale: self.scale,
-            width: width,
+            width: self.scale(width),
             height: self.height
         }
     }
@@ -83,7 +83,7 @@ impl Projector {
             anchor_point: self.anchor_point + Vector2::new(0.0, self.height) - self.scale(Vector2::new(0.0, height)),
             scale: self.scale,
             width: self.width,
-            height: height
+            height: self.scale(height)
         }
     }
 
@@ -91,7 +91,7 @@ impl Projector {
         Projector {
             anchor_point: self.anchor_point + Vector2::new(self.width, 0.0) - self.scale(Vector2::new(width, 0.0)),
             scale: self.scale,
-            width: width,
+            width: self.scale(width),
             height: self.height
         }
     }
