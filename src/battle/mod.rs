@@ -1,5 +1,4 @@
 use ggez::graphics::{self, Color};
-use nalgebra::{Point2};
 use rand::{random};
 use std::cmp;
 
@@ -377,9 +376,17 @@ impl BattleState {
             player_display_offset += 140.0;
         }
 
-        let timeline_mesh = action_timeline::create_mesh(ctx, &self.timeline)?;
+        let timeline_mesh = action_timeline::create_mesh(
+            ctx,
+            &self.timeline,
+            &projector.local()
+        )?;
 
-        graphics::draw(ctx, &timeline_mesh, (Point2::new(200.0, 400.0),))?;
+        graphics::draw(
+            ctx,
+            &timeline_mesh,
+            (projector.bottom_left(170.0).centered_horizontal(400.0).origin(),)
+        )?;
 
         Ok(())
     }

@@ -3,6 +3,8 @@ use ggez::graphics::{self, Color, Mesh, MeshBuilder};
 use ggez::nalgebra::{Point2};
 use std::collections::HashMap;
 
+use crate::projector::{Projector};
+
 pub struct ActionTimeline {
     next_subject_id: i32,
     time: f32,
@@ -77,21 +79,22 @@ impl ActionTimeline {
     }
 }
 
-pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<Mesh> {
+pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline, projector: &Projector) -> GameResult<Mesh> {
 
     let mut ruler = &mut MeshBuilder::new();
-    let offset = viewmodel.time % 10.0;
+    let interval = 10.0;
+    let offset = viewmodel.time % interval;
 
     ruler = ruler.line(
         &[
             Point2::new(0.0, 0.0),
-            Point2::new(400.0, 0.0)
+            Point2::new(projector.scale(400.0), 0.0)
         ],
         2.0,
         graphics::WHITE
     )?;
 
-    let tenth_offset = (viewmodel.time % 100.0 / 10.0).floor();
+    let tenth_offset = (viewmodel.time % 100.0 / interval).floor();
 
     for i in 0..41 {
 
@@ -99,12 +102,12 @@ pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<
             continue;
         }
 
-        let is_tenth = (tenth_offset + i as f32) % 10.0 == 0.0;
+        let is_tenth = (tenth_offset + i as f32) % interval == 0.0;
 
         ruler = ruler.line(
             &[
-                Point2::new(i as f32 * 10.0 - offset, if is_tenth { -5.0 } else { -3.0 }),
-                Point2::new(i as f32 * 10.0 - offset, 0.0)
+                projector.coords(i as f32 * interval - offset, if is_tenth { -5.0 } else { -3.0 }),
+                projector.coords(i as f32 * interval - offset, 0.0)
             ],
             1.0,
             graphics::WHITE
@@ -123,8 +126,8 @@ pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<
             subject_position = 0.0;
         }
 
-        if previous_position + 16.0 > subject_position &&
-            previous_position - 16.0 < subject_position {
+        if projector.scale(previous_position + 16.0) > projector.scale(subject_position) &&
+            projector.scale(previous_position - 16.0) < projector.scale(subject_position) {
             current_stack = previous_stack + 1;
         }
 
@@ -133,8 +136,8 @@ pub fn create_mesh(ctx: &mut Context, viewmodel: &ActionTimeline) -> GameResult<
 
         ruler = ruler.circle(
             graphics::DrawMode::fill(),
-            Point2::new(subject_position, -18.0 * current_stack as f32),
-            8.0,
+            projector.coords(subject_position, -18.0 * current_stack as f32),
+            projector.scale(8.0),
             0.5,
             if viewmodel.highlighted_subject == Some(*id) { graphics::WHITE } else { viewmodel.subject_colors[id] }
         );
