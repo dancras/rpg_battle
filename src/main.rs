@@ -15,9 +15,6 @@ const SCREEN_HEIGHT: f32 = 900.0;
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
-// TODO make rendering responsive
-//  - anchor rendering to viewport corners
-//  - all dimension values to be passed through a scaling function
 // TODO make important state changes wait for animation (eg end battle)
 // TODO consider remaining_update_time delta in the draw step
 // TODO split battle module into more parts
@@ -110,7 +107,7 @@ impl event::EventHandler for MainState {
             self.ui_scale,
             SCREEN_WIDTH,
             SCREEN_HEIGHT
-        );
+        ).margins(90.0, 20.0);
 
         let ui_scale_input_projector = &projector.centered(170.0, 20.0);
         let input_value = self.ui_scale_input.handle_mouse_down(
@@ -141,7 +138,7 @@ impl event::EventHandler for MainState {
             self.ui_scale,
             SCREEN_WIDTH,
             SCREEN_HEIGHT
-        );
+        ).margins(90.0, 20.0);
 
         self.battle.handle_mouse_move(x, y, &projector);
     }
@@ -174,7 +171,7 @@ impl event::EventHandler for MainState {
             self.ui_scale,
             SCREEN_WIDTH,
             SCREEN_HEIGHT
-        );
+        ).margins(90.0, 20.0);
 
         let mut hello_world = graphics::Text::new(format!("Scale {}", self.ui_scale));
 

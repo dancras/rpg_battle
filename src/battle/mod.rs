@@ -352,7 +352,8 @@ impl BattleState {
             draw_enemy_display(
                 ctx,
                 enemy,
-                &projector.top_right((i + 1) as f32 * 140.0),
+                // -20.0 is to remove the final right margin included in the 140.0
+                &projector.top_right((i + 1) as f32 * 140.0 - 20.0),
                 i == self.target_enemy
             )?;
         }
@@ -370,7 +371,7 @@ impl BattleState {
                 ctx,
                 player,
                 &projector.bottom_left(90.0)
-                    .local_relative(90.0 + player_display_offset, 0.0),
+                    .local_relative(player_display_offset, 0.0),
                 self.players_pending.len() > 0 && self.players_pending[0] == i
             )?;
             player_display_offset += 140.0;

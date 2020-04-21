@@ -43,6 +43,15 @@ impl Projector {
         }
     }
 
+    pub fn margins(&self, horizontal: f32, vertical: f32) -> Self {
+        Self {
+            anchor_point: self.anchor_point + self.scale(Vector2::new(horizontal, vertical)),
+            scale: self.scale,
+            width: self.width - self.scale(horizontal * 2.0),
+            height: self.height - self.scale(vertical * 2.0)
+        }
+    }
+
     pub fn centered(&self, width: f32, height: f32) -> Projector {
 
         let midpoint = self.origin() + Vector2::new(self.width, self.height) / 2.0;
