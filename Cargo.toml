@@ -10,4 +10,9 @@ edition = "2018"
 ezing = "0.2"
 ggez = "0.5"
 nalgebra = "0.18"
+patchwork = "0.1.0"
 rand = "0.7"
+tiled-json-rs = "0.2"
+
+[patch.crates-io]
+ggez = { path="../ggez" }

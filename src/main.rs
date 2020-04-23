@@ -5,6 +5,10 @@ use ggez::graphics;
 use ggez::input::mouse::{MouseButton};
 use ggez::timer;
 use nalgebra::{Point2};
+use patchwork::{TileSet, TileParams};
+use std::path::{PathBuf};
+use std::env;
+use tiled_json_rs as tiled;
 
 use rpg_battle::battle::{BattleState, BattleEvents};
 use rpg_battle::ui::options::{Options};
@@ -26,7 +30,8 @@ struct MainState {
     events: Vec<MainEvents>,
     ui_scale: f32,
     ui_scale_input: Options,
-    display_settings: bool
+    display_settings: bool,
+    tiles: TileSet<u32>
 }
 
 
@@ -40,6 +45,49 @@ fn battle_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + 
 
 impl MainState {
     fn new(ctx: &mut ggez::Context) -> ggez::GameResult<MainState> {
+
+        // Currently requires a symlink in the project root to the tileset
+        // as the tiled library file paths are relative to the project root,
+        // not the map file.
+        let map = tiled::Map::load_from_file(&PathBuf::from("resources/test_map.json"))
+            .expect("Failed to load map");
+
+        let tile_set_filename = map.tile_sets[0].image.clone().into_os_string().into_string()
+            .expect("Failed to get tile set filename");
+
+        let tileset_image = graphics::Image::new(ctx, format!("/{}", tile_set_filename))?;
+
+        let mut tiles: TileSet<u32> = TileSet::new(tileset_image, [32, 32]);
+
+        let mut tile_id = 1;
+        for i in 0..16 {
+            for j in 0..16 {
+                tiles.register_tile(tile_id, [j, i])
+                    .expect("Failed to register tile");
+                tile_id += 1;
+            }
+        }
+
+        for layer in &map.layers {
+            match &layer.layer_type {
+                tiled::LayerType::TileLayer(layer_tiles) => {
+                    for i in 0..layer_tiles.data.len() {
+                        let tile = layer_tiles.data[i];
+                        let x = i as i32 % 50;
+                        let y = i as i32 / 50;
+
+                        if tile > 0 && x < 45 && y < 29 {
+                            tiles.queue_tile::<_, TileParams>(
+                                tile,
+                                [x, y],
+                                None
+                            ).expect("Failed to queue tile");
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
 
         let maybe_font = graphics::Font::new_glyph_font_bytes(
             ctx,
@@ -57,7 +105,8 @@ impl MainState {
             events: Vec::new(),
             ui_scale: 1.0,
             ui_scale_input: Options::new(5, 2),
-            display_settings: false
+            display_settings: false,
+            tiles: tiles
         };
 
         Ok(s)
@@ -175,6 +224,8 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
+        self.tiles.draw(ctx)?;
+
         let projector = Projector::new(
             Point2::new(0.0, 0.0),
             self.ui_scale,
@@ -201,7 +252,15 @@ impl event::EventHandler for MainState {
 pub fn main() -> ggez::GameResult {
 
     // Make a Context.
-    let (ctx, event_loop) = &mut ContextBuilder::new("dancras/rpg_battle", "dancras")
+    let mut cb = ContextBuilder::new("dancras/rpg_battle", "dancras");
+
+    if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
+        let mut path = PathBuf::from(manifest_dir);
+        path.push("resources");
+        cb = cb.add_resource_path(path);
+    }
+
+    let (ctx, event_loop) = &mut cb
         .window_mode(
             WindowMode::default()
                 .dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)
