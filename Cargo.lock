@@ -1237,7 +1237,6 @@ dependencies = [
 [[package]]
 name = "patchwork"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ggez 0.5.1",
  "nalgebra 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1549,7 +1548,7 @@ dependencies = [
  "ezing 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ggez 0.5.1",
  "nalgebra 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "patchwork 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patchwork 0.1.0",
  "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiled-json-rs 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2294,7 +2293,6 @@ dependencies = [
 "checksum osmesa-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "88cfece6e95d2e717e0872a7f53a8684712ad13822a7979bc760b9c77ec0013b"
 "checksum parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f842b1982eb6c2fe34036a4fbfb06dd185a3f5c8edfaacdf7d1ea10b07de6252"
 "checksum parking_lot_core 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b876b1b9e7ac6e1a74a6da34d25c42e17e8862aa409cbbbdcfc8d86c6f3bc62b"
-"checksum patchwork 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9e19c3bab3d0bce67b1884a36b84036b0274e2bb4afa17af6776d01a997da5b7"
 "checksum peeking_take_while 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 "checksum percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
 "checksum pkg-config 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)" = "05da548ad6865900e60eaba7f589cc0783590a92e940c26953ff81ddbab2d677"

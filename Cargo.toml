@@ -16,3 +16,4 @@ tiled-json-rs = "0.2"
 
 [patch.crates-io]
 ggez = { path="../ggez" }
+patchwork = { path="../patchwork" }

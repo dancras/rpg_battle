@@ -18,6 +18,8 @@ const SCREEN_WIDTH: f32 = 1440.0;
 const SCREEN_HEIGHT: f32 = 900.0;
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
+const EXPLORE_WIDTH: f32 = 512.0;
+const EXPLORE_HEIGHT: f32 = 288.0;
 
 // TODO make important state changes wait for animation (eg end battle)
 // TODO consider remaining_update_time delta in the draw step
@@ -31,7 +33,8 @@ struct MainState {
     ui_scale: f32,
     ui_scale_input: Options,
     display_settings: bool,
-    tiles: TileSet<u32>
+    tiles: TileSet<u32>,
+    tiles_offset: f32
 }
 
 
@@ -60,13 +63,17 @@ impl MainState {
         let mut tiles: TileSet<u32> = TileSet::new(tileset_image, [32, 32]);
 
         let mut tile_id = 1;
-        for i in 0..16 {
-            for j in 0..16 {
-                tiles.register_tile(tile_id, [j, i])
+        for row in 0..16 {
+            for col in 0..16 {
+                tiles.register_tile(tile_id, [col, row])
                     .expect("Failed to register tile");
                 tile_id += 1;
             }
         }
+
+        let tile_scale = SCREEN_HEIGHT / EXPLORE_HEIGHT;
+        let tile_cols = (EXPLORE_WIDTH / 32.0) as i32;
+        let tile_rows = (EXPLORE_HEIGHT / 32.0) as i32;
 
         for layer in &map.layers {
             match &layer.layer_type {
@@ -76,11 +83,14 @@ impl MainState {
                         let x = i as i32 % 50;
                         let y = i as i32 / 50;
 
-                        if tile > 0 && x < 45 && y < 29 {
+                        if tile > 0 && x < tile_cols && y < tile_rows {
                             tiles.queue_tile::<_, TileParams>(
                                 tile,
                                 [x, y],
-                                None
+                                Some(TileParams {
+                                    color: None,
+                                    scale: Some([tile_scale, tile_scale].into())
+                                })
                             ).expect("Failed to queue tile");
                         }
                     }
@@ -106,7 +116,8 @@ impl MainState {
             ui_scale: 1.0,
             ui_scale_input: Options::new(5, 2),
             display_settings: false,
-            tiles: tiles
+            tiles: tiles,
+            tiles_offset: (SCREEN_WIDTH - EXPLORE_WIDTH * tile_scale) / 2.0
         };
 
         Ok(s)
@@ -224,7 +235,7 @@ impl event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
-        self.tiles.draw(ctx)?;
+        self.tiles.draw(ctx, (Point2::new(self.tiles_offset, 0.0),))?;
 
         let projector = Projector::new(
             Point2::new(0.0, 0.0),
