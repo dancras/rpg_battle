@@ -1,6 +1,6 @@
 use ggez::{self, ContextBuilder};
 use ggez::conf::{WindowMode, FullscreenType};
-use ggez::event;
+use ggez::event::{self, KeyCode, KeyMods};
 use ggez::graphics;
 use ggez::input::mouse::{MouseButton};
 use ggez::timer;
@@ -10,6 +10,7 @@ use std::env;
 
 use rpg_battle::battle::{BattleState, BattleEvents};
 use rpg_battle::explore::{ExploreState};
+use rpg_battle::input::{MoveState};
 use rpg_battle::ui::options::{Options};
 use rpg_battle::projector::{Projector};
 
@@ -30,7 +31,8 @@ struct MainState {
     ui_scale: f32,
     ui_scale_input: Options,
     display_settings: bool,
-    explore: ExploreState
+    explore: ExploreState,
+    move_state: MoveState
 }
 
 
@@ -62,7 +64,8 @@ impl MainState {
             ui_scale: 1.0,
             ui_scale_input: Options::new(5, 2),
             display_settings: false,
-            explore: ExploreState::new(ctx, SCREEN_WIDTH, SCREEN_HEIGHT)?
+            explore: ExploreState::new(ctx, SCREEN_WIDTH, SCREEN_HEIGHT)?,
+            move_state: Default::default()
         };
 
         Ok(s)
@@ -88,6 +91,29 @@ impl MainState {
 
 impl event::EventHandler for MainState {
 
+    fn key_down_event(
+        &mut self,
+        _ctx: &mut ggez::Context,
+        keycode: KeyCode,
+        _keymods: KeyMods,
+        _repeat: bool
+    ) {
+        if keycode == KeyCode::Escape {
+            std::process::exit(0);
+        }
+
+        self.move_state.handle_key_down(&keycode);
+    }
+
+    fn key_up_event(
+        &mut self,
+        _ctx: &mut ggez::Context,
+        keycode: KeyCode,
+        _keymods: KeyMods
+    ) {
+        self.move_state.handle_key_up(&keycode);
+    }
+
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
         if character == '1' && self.battle.player_move_pending() {
             self.battle.player_attack_move(battle_event_notifier(&mut self.events));
@@ -97,7 +123,7 @@ impl event::EventHandler for MainState {
             self.battle.player_block_move(battle_event_notifier(&mut self.events));
         }
 
-        if character == 's' {
+        if character == 'h' {
             self.display_settings = !self.display_settings;
         }
 
@@ -164,6 +190,8 @@ impl event::EventHandler for MainState {
             let delta = 1.0 / (DESIRED_FPS as f32);
 
             self.randomise_timer += delta;
+
+            self.explore.update(self.move_state.get_move(), delta);
 
             self.battle.tick(delta, battle_event_notifier(&mut self.events));
 
