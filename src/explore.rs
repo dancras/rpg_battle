@@ -16,7 +16,10 @@ pub struct ExploreState {
     tile_scale: f32,
     tiles_offset: f32,
     x: f32,
-    y: f32
+    y: f32,
+    tile_x: i32,
+    tile_y: i32,
+    map: tiled::Map
 }
 
 impl ExploreState {
@@ -45,39 +48,17 @@ impl ExploreState {
         }
 
         let tile_scale = screen_height / EXPLORE_HEIGHT;
-        let tile_cols = (EXPLORE_WIDTH / 32.0) as i32;
-        let tile_rows = (EXPLORE_HEIGHT / 32.0) as i32;
-
-        for layer in &map.layers {
-            match &layer.layer_type {
-                tiled::LayerType::TileLayer(layer_tiles) => {
-                    for i in 0..layer_tiles.data.len() {
-                        let tile = layer_tiles.data[i];
-                        let x = i as i32 % 50;
-                        let y = i as i32 / 50;
-
-                        if tile > 0 && x < tile_cols && y < tile_rows {
-                            tiles.queue_tile::<_, TileParams>(
-                                tile,
-                                [x, y],
-                                Some(TileParams {
-                                    color: None,
-                                    scale: Some([tile_scale, tile_scale].into())
-                                })
-                            ).expect("Failed to queue tile");
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
 
         Ok(Self {
             tiles: tiles,
             tile_scale: tile_scale,
             tiles_offset: (screen_width - EXPLORE_WIDTH * tile_scale) / 2.0,
             x: 0.0,
-            y: 0.0
+            y: 0.0,
+            // Bogus numbers to trigger calculation on first update
+            tile_x: 555,
+            tile_y: 555,
+            map: map
         })
 
     }
@@ -122,6 +103,51 @@ impl ExploreState {
             },
             Move::None => {}
         }
+
+        let new_tile_x = self.x as i32 / 32;
+        let new_tile_y = self.y as i32 / 32;
+
+        if self.tile_x != new_tile_x || self.tile_y != new_tile_y {
+            self.tile_x = new_tile_x;
+            self.tile_y = new_tile_y;
+
+            self.tiles.clear_queue();
+
+            let tile_cols = (EXPLORE_WIDTH / 32.0) as i32;
+            let tile_rows = (EXPLORE_HEIGHT / 32.0) as i32;
+
+            for layer in &self.map.layers {
+                match &layer.layer_type {
+                    tiled::LayerType::TileLayer(layer_tiles) => {
+                        for i in 0..layer_tiles.data.len() {
+                            let tile = layer_tiles.data[i];
+                            let x = i as i32 % 50;
+                            let y = i as i32 / 50;
+                            let start_x = self.tile_x;
+                            let end_x = start_x + tile_cols;
+                            let start_y = self.tile_y;
+                            let end_y = start_y + tile_rows;
+
+                            if tile > 0 &&
+                                x >= start_x && x <= end_x &&
+                                y >= start_y && y <= end_y
+                            {
+                                self.tiles.queue_tile::<_, TileParams>(
+                                    tile,
+                                    [x, y],
+                                    Some(TileParams {
+                                        color: None,
+                                        scale: Some([self.tile_scale, self.tile_scale].into())
+                                    })
+                                ).expect("Failed to queue tile");
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
 
     }
 }
