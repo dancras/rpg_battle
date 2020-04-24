@@ -8,9 +8,11 @@ use crate::input::{Move};
 
 const EXPLORE_WIDTH: f32 = 512.0;
 const EXPLORE_HEIGHT: f32 = 288.0;
+const EXPLORE_SPEED: f32 = 80.0;
 
 pub struct ExploreState {
     tiles: TileSet<u32>,
+    tile_scale: f32,
     tiles_offset: f32,
     x: f32,
     y: f32
@@ -71,6 +73,7 @@ impl ExploreState {
 
         Ok(Self {
             tiles: tiles,
+            tile_scale: tile_scale,
             tiles_offset: (screen_width - EXPLORE_WIDTH * tile_scale) / 2.0,
             x: 0.0,
             y: 0.0
@@ -79,7 +82,13 @@ impl ExploreState {
     }
 
     pub fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
-        self.tiles.draw(ctx, (Point2::new(self.tiles_offset - self.x, -self.y),))?;
+        self.tiles.draw(
+            ctx,
+            (Point2::new(
+                self.tiles_offset - self.x * self.tile_scale,
+                -self.y * self.tile_scale
+            ),)
+        )?;
 
         Ok(())
     }
@@ -87,7 +96,7 @@ impl ExploreState {
     pub fn update(&mut self, current_move: Move, delta: f32) {
 
         match current_move {
-            Move::Down => self.y += 200.0 * delta,
+            Move::Down => self.y += EXPLORE_SPEED * delta,
             _ => {}
         }
 
