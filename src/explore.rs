@@ -9,6 +9,7 @@ use crate::input::{Move};
 const EXPLORE_WIDTH: f32 = 512.0;
 const EXPLORE_HEIGHT: f32 = 288.0;
 const EXPLORE_SPEED: f32 = 80.0;
+const DIAGONAL_FACTOR: f32 = 0.7071067811865475;
 
 pub struct ExploreState {
     tiles: TileSet<u32>,
@@ -95,9 +96,31 @@ impl ExploreState {
 
     pub fn update(&mut self, current_move: Move, delta: f32) {
 
+        let movement = EXPLORE_SPEED * delta;
+        let diagonal_movement = movement * DIAGONAL_FACTOR;
+
         match current_move {
-            Move::Down => self.y += EXPLORE_SPEED * delta,
-            _ => {}
+            Move::Up => self.y -= movement,
+            Move::UpRight => {
+                self.y -= diagonal_movement;
+                self.x += diagonal_movement;
+            },
+            Move::Right => self.x += movement,
+            Move::DownRight => {
+                self.y += diagonal_movement;
+                self.x += diagonal_movement;
+            },
+            Move::Down => self.y += movement,
+            Move::DownLeft => {
+                self.y += diagonal_movement;
+                self.x -= diagonal_movement;
+            },
+            Move::Left => self.x -= movement,
+            Move::UpLeft => {
+                self.y -= diagonal_movement;
+                self.x -= diagonal_movement;
+            },
+            Move::None => {}
         }
 
     }

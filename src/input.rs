@@ -48,6 +48,10 @@ impl MoveState {
             } else {
                 Move::Down
             }
+        } else if self.left {
+            Move::Left
+        } else if self.right {
+            Move::Right
         } else {
             Move::None
         }
