@@ -10,6 +10,7 @@ use std::env;
 
 use rpg_battle::battle::{BattleState, BattleEvents};
 use rpg_battle::explore::{ExploreState};
+use rpg_battle::fps_meter::{FpsMeter};
 use rpg_battle::input::{MoveState};
 use rpg_battle::ui::options::{Options};
 use rpg_battle::projector::{Projector};
@@ -24,6 +25,7 @@ const RANDOMISE_INTERVAL: f32 = 2.0;
 // TODO split battle module into more parts
 // TODO revise privacy settings for structs and members
 struct MainState {
+    fps_meter: FpsMeter,
     font: graphics::Font,
     randomise_timer: f32,
     battle: BattleState,
@@ -57,6 +59,7 @@ impl MainState {
         };
 
         let s = MainState {
+            fps_meter: FpsMeter::new(),
             font: font,
             randomise_timer: 0.0,
             battle: BattleState::new(),
@@ -185,7 +188,10 @@ impl event::EventHandler for MainState {
 
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
 
+        self.fps_meter.update_start(ctx);
+
         while timer::check_update_time(ctx, DESIRED_FPS) {
+            self.fps_meter.update_loop(ctx);
 
             let delta = 1.0 / (DESIRED_FPS as f32);
 
@@ -202,10 +208,14 @@ impl event::EventHandler for MainState {
             self.flush_events();
         }
 
+        self.fps_meter.update_end(ctx);
+
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
+        self.fps_meter.draw_start(ctx);
+
         graphics::clear(ctx, [0.1, 0.2, 0.3, 1.0].into());
 
         self.explore.draw(ctx)?;
@@ -228,7 +238,10 @@ impl event::EventHandler for MainState {
             self.ui_scale_input.draw(ctx, &settings_projector.top_right(170.0))?;
         }
 
+        self.fps_meter.draw(ctx)?;
         graphics::present(ctx)?;
+
+        self.fps_meter.draw_end(ctx);
         Ok(())
     }
 }
