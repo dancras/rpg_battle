@@ -8,11 +8,35 @@ use std::time::Duration;
 // dropped frames
 // draw frame time
 
+struct History {
+    values: [i32; 400],
+    i: usize
+}
+
+impl History {
+    fn new() -> Self {
+        Self {
+            values: [0; 400],
+            i: 0
+        }
+    }
+
+    fn add_entry(&mut self, entry: i32) {
+        self.values[self.i] = entry;
+        self.i = (self.i + 1) % 400;
+    }
+
+    fn get_entry(&self, entry: usize) -> i32 {
+        let i_for_entry = (400 + (self.i as i32 - entry as i32)) % 400;
+        self.values[i_for_entry as usize]
+    }
+}
+
 pub struct FpsMeter {
     flag_draw: bool,
     draw_start_time: Duration,
-    draw_times: Vec<u128>,
-    dropped_frames: Vec<i32>,
+    draw_times: History,
+    dropped_frames: History,
     dropped_frame_count: i32
 }
 
@@ -21,8 +45,8 @@ impl FpsMeter {
         Self {
             flag_draw: false,
             draw_start_time: Duration::new(0, 0),
-            draw_times: Vec::new(),
-            dropped_frames: Vec::new(),
+            draw_times: History::new(),
+            dropped_frames: History::new(),
             dropped_frame_count: 0
         }
     }
@@ -36,7 +60,7 @@ impl FpsMeter {
     }
 
     pub fn update_end(&mut self, _ctx: &Context) {
-        self.dropped_frames.push(self.dropped_frame_count);
+        self.dropped_frames.add_entry(self.dropped_frame_count);
     }
 
     pub fn draw_start(&mut self, ctx: &Context) {
@@ -60,79 +84,52 @@ impl FpsMeter {
             let end_time = timer::time_since_start(ctx);
             let total_time = (end_time - self.draw_start_time).as_millis();
 
-            self.draw_times.push(total_time)
+            self.draw_times.add_entry(total_time as i32);
         }
 
     }
 
     pub fn draw(&self, ctx: &mut Context) -> GameResult {
 
-        if self.draw_times.len() == 0 {
-            return Ok(());
-        }
-
         let mut meter = &mut MeshBuilder::new();
-
-        let width = (self.draw_times.len() * 2) as f32;
-        let start = 1440.0 - width;
+        let right_anchor = 1440.0;
         let baseline = 900.0;
 
-        {
-            let (head, tail) = self.draw_times.split_at(1);
-            let mut previous = head[0] as f32;
 
-            for (i, time) in tail.iter().enumerate() {
+        let mut previous_draw_time = self.draw_times.get_entry(0) as f32;
+        let mut previous_dropped_frames = self.dropped_frames.get_entry(0) as f32;
 
-                let i = i as f32;
-                let current = *time as f32;
+        for i in 1..400 {
 
-                // println!("start {} {}", start + i * 2.0, baseline - previous);
-                // println!("end {} {}", start + (i + 1.0) * 2.0, baseline - current);
+            let current_draw_time = self.draw_times.get_entry(i) as f32;
+            let current_dropped_frames = self.dropped_frames.get_entry(i) as f32;
+            let i = i as f32;
 
-                meter = meter.line::<[f32; 2]>(
-                    &[
-                        [start + i * 2.0, baseline - previous].into(),
-                        [start + (i + 1.0) * 2.0, baseline - current].into()
-                    ],
-                    1.0,
-                    Color::new(0.2, 1.0, 0.6, 1.0)
-                )?;
+            meter = meter.line::<[f32; 2]>(
+                &[
+                    [right_anchor - i * 2.0, baseline - previous_draw_time].into(),
+                    [right_anchor - (i + 1.0) * 2.0, baseline - current_draw_time].into()
+                ],
+                1.0,
+                Color::new(0.2, 1.0, 0.6, 1.0)
+            )?;
 
-                previous = current;
-            }
+            meter = meter.line::<[f32; 2]>(
+                &[
+                    [right_anchor - i * 2.0, baseline - previous_dropped_frames * 10.0].into(),
+                    [right_anchor - (i + 1.0) * 2.0, baseline - current_dropped_frames * 10.0].into()
+                ],
+                1.0,
+                Color::new(1.0, 1.0, 0.6, 1.0)
+            )?;
+
+            previous_draw_time = current_draw_time;
+            previous_dropped_frames = current_dropped_frames;
         }
 
-        {
-            let (head, tail) = self.dropped_frames.split_at(1);
-            let mut previous = head[0] as f32;
+        let mesh = meter.build(ctx)?;
 
-            for (i, time) in tail.iter().enumerate() {
-
-                let i = i as f32;
-                let current = *time as f32;
-
-                // println!("start {} {}", start + i * 2.0, baseline - previous);
-                // println!("end {} {}", start + (i + 1.0) * 2.0, baseline - current);
-
-                meter = meter.line::<[f32; 2]>(
-                    &[
-                        [start + i * 2.0, baseline - previous * 10.0].into(),
-                        [start + (i + 1.0) * 2.0, baseline - current * 10.0].into()
-                    ],
-                    1.0,
-                    Color::new(1.0, 1.0, 0.6, 1.0)
-                )?;
-
-                previous = current;
-            }
-        }
-
-
-        if self.draw_times.len() > 1 {
-            let mesh = meter.build(ctx)?;
-
-            graphics::draw::<_, ([f32; 2],)>(ctx, &mesh, ([0.0, 0.0],))?;
-        }
+        graphics::draw::<_, ([f32; 2],)>(ctx, &mesh, ([0.0, 0.0],))?;
 
         Ok(())
     }
