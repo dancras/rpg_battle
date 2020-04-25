@@ -22,7 +22,7 @@ impl History {
     }
 
     fn get_entry(&self, entry: usize) -> i32 {
-        let i_for_entry = (400 + (self.i as i32 - entry as i32)) % 400;
+        let i_for_entry = (400 + (self.i as i32 - 1 - entry as i32)) % 400;
         self.values[i_for_entry as usize]
     }
 }
