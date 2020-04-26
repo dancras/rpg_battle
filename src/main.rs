@@ -20,6 +20,7 @@ const SCREEN_HEIGHT: f32 = 900.0;
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
+// TODO enter battle state by approaching an enemy
 // TODO make important state changes wait for animation (eg end battle)
 // TODO consider remaining_update_time delta in the draw step
 // TODO split battle module into more parts
@@ -28,7 +29,7 @@ struct MainState {
     fps_meter: FpsMeter,
     font: graphics::Font,
     randomise_timer: f32,
-    battle: BattleState,
+    battle: Option<BattleState>,
     events: Vec<MainEvents>,
     ui_scale: f32,
     ui_scale_input: Options,
@@ -62,7 +63,7 @@ impl MainState {
             fps_meter: FpsMeter::new(),
             font: font,
             randomise_timer: 0.0,
-            battle: BattleState::new(),
+            battle: None,
             events: Vec::new(),
             ui_scale: 1.0,
             ui_scale_input: Options::new(5, 2),
@@ -82,10 +83,13 @@ impl MainState {
 
             match event {
                 MainEvents::BattleEvent(BattleEvents::End) => {
-                    self.battle = BattleState::new();
+                    self.battle = None;
                 },
                 MainEvents::BattleEvent(e) => {
-                    self.battle.handle_event(&e, battle_event_notifier(main_events));
+                    match &mut self.battle {
+                        Some(battle) => battle.handle_event(&e, battle_event_notifier(main_events)),
+                        None => {}
+                    }
                 }
             }
         }
@@ -118,12 +122,18 @@ impl event::EventHandler for MainState {
     }
 
     fn text_input_event(&mut self, _ctx: &mut ggez::Context, character: char) {
-        if character == '1' && self.battle.player_move_pending() {
-            self.battle.player_attack_move(battle_event_notifier(&mut self.events));
-        }
 
-        if character == '2' && self.battle.player_move_pending() {
-            self.battle.player_block_move(battle_event_notifier(&mut self.events));
+        match &mut self.battle {
+            Some(battle) => {
+                if character == '1' && battle.player_move_pending() {
+                    battle.player_attack_move(battle_event_notifier(&mut self.events));
+                }
+
+                if character == '2' && battle.player_move_pending() {
+                    battle.player_block_move(battle_event_notifier(&mut self.events));
+                }
+            },
+            None => {}
         }
 
         if character == 'h' {
@@ -137,8 +147,13 @@ impl event::EventHandler for MainState {
         &mut self, _ctx: &mut ggez::Context, _button: MouseButton, x: f32, y: f32
     ) {
         // Select hovered enemy
-        if let Some(i) = self.battle.hovered_enemy {
-            self.battle.target_enemy = i;
+        match &mut self.battle {
+            Some(battle) => {
+                if let Some(i) = battle.hovered_enemy {
+                    battle.target_enemy = i;
+                }
+            },
+            None => {}
         }
 
         // Update UI scale input
@@ -183,7 +198,13 @@ impl event::EventHandler for MainState {
             SCREEN_HEIGHT
         ).margins(90.0, 20.0);
 
-        self.battle.handle_mouse_move(x, y, &projector);
+        match &mut self.battle {
+            Some(battle) => {
+                battle.handle_mouse_move(x, y, &projector);
+            },
+            None => {}
+        }
+
     }
 
     fn update(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
@@ -199,7 +220,12 @@ impl event::EventHandler for MainState {
 
             self.explore.update(self.move_state.get_move(), delta);
 
-            self.battle.tick(delta, battle_event_notifier(&mut self.events));
+            match &mut self.battle {
+                Some(battle) => {
+                    battle.tick(delta, battle_event_notifier(&mut self.events));
+                },
+                None => {}
+            }
 
             if self.randomise_timer > RANDOMISE_INTERVAL {
                 self.randomise_timer = self.randomise_timer % RANDOMISE_INTERVAL;
@@ -227,7 +253,12 @@ impl event::EventHandler for MainState {
             SCREEN_HEIGHT
         ).margins(90.0, 20.0);
 
-        self.battle.draw(ctx, &projector)?;
+        match &mut self.battle {
+            Some(battle) => {
+                battle.draw(ctx, &projector)?;
+            },
+            None => {}
+        }
 
         if self.display_settings {
             let settings_projector = projector.centered(300.0, 20.0);
