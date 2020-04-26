@@ -19,7 +19,9 @@ pub struct ExploreState {
     y: f32,
     tile_x: i32,
     tile_y: i32,
-    map: tiled::Map
+    map: tiled::Map,
+    camera_x: f32,
+    camera_y: f32
 }
 
 impl ExploreState {
@@ -53,12 +55,14 @@ impl ExploreState {
             tiles: tiles,
             tile_scale: tile_scale,
             tiles_offset: (screen_width - EXPLORE_WIDTH * tile_scale) / 2.0,
-            x: 0.0,
-            y: 0.0,
+            x: 256.0,
+            y: 144.0,
             // Bogus numbers to trigger calculation on first update
             tile_x: 555,
             tile_y: 555,
-            map: map
+            map: map,
+            camera_x: 0.0,
+            camera_y: 0.0
         })
 
     }
@@ -67,9 +71,27 @@ impl ExploreState {
         self.tiles.draw(
             ctx,
             (Point2::new(
-                self.tiles_offset - self.x * self.tile_scale,
-                -self.y * self.tile_scale
+                self.tiles_offset - self.camera_x * self.tile_scale,
+                -self.camera_y * self.tile_scale
             ),)
+        )?;
+
+        let player = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            graphics::Rect {
+                x: -13.0 * self.tile_scale,
+                y: -46.0 * self.tile_scale,
+                w: 26.0 * self.tile_scale,
+                h: 46.0 * self.tile_scale
+            },
+            graphics::BLACK
+        )?;
+
+        graphics::draw(
+            ctx,
+            &player,
+            (Point2::new((self.x - self.camera_x) * self.tile_scale + self.tiles_offset, (self.y - self.camera_y) * self.tile_scale),)
         )?;
 
         Ok(())
@@ -104,8 +126,20 @@ impl ExploreState {
             Move::None => {}
         }
 
-        let new_tile_x = self.x as i32 / 32;
-        let new_tile_y = self.y as i32 / 32;
+        self.camera_x = self.x - EXPLORE_WIDTH / 2.0;
+
+        if self.camera_x < 0.0 {
+            self.camera_x = 0.0;
+        }
+
+        self.camera_y = self.y - EXPLORE_HEIGHT / 2.0;
+
+        if self.camera_y < 0.0 {
+            self.camera_y = 0.0;
+        }
+
+        let new_tile_x = self.camera_x as i32 / 32;
+        let new_tile_y = self.camera_y as i32 / 32;
 
         if self.tile_x != new_tile_x || self.tile_y != new_tile_y {
             self.tile_x = new_tile_x;
