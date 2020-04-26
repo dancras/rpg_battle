@@ -1,6 +1,7 @@
 use ggez::{self, graphics};
 use nalgebra::{Point2};
 use patchwork::{TileSet, TileParams};
+use rand::{random};
 use std::path::{PathBuf};
 use tiled_json_rs as tiled;
 
@@ -11,6 +12,11 @@ const EXPLORE_HEIGHT: f32 = 288.0;
 const EXPLORE_SPEED: f32 = 80.0;
 const DIAGONAL_FACTOR: f32 = 0.7071067811865475;
 
+// Position a bunch of monsters
+// Add them to battle on proximity
+// Remove from map on kill
+// On empty map reset all monsters
+// On player death reset all monsters
 pub struct ExploreState {
     tiles: TileSet<u32>,
     tile_scale: f32,
@@ -21,7 +27,8 @@ pub struct ExploreState {
     tile_y: i32,
     map: tiled::Map,
     camera_x: f32,
-    camera_y: f32
+    camera_y: f32,
+    monsters: Vec<Point2<f32>>
 }
 
 impl ExploreState {
@@ -51,6 +58,20 @@ impl ExploreState {
 
         let tile_scale = screen_height / EXPLORE_HEIGHT;
 
+        let mut monsters = Vec::new();
+
+        for row in 0..8 {
+            for col in 0..8 {
+                let row = row as f32;
+                let col = col as f32;
+                let rand_x = 200.0 * col + random::<f32>() * 200.0;
+                let rand_y = 200.0 * row + random::<f32>() * 200.0;
+                monsters.push(Point2::new(rand_x, rand_y));
+            }
+        }
+
+        monsters.remove(0);
+
         Ok(Self {
             tiles: tiles,
             tile_scale: tile_scale,
@@ -62,7 +83,8 @@ impl ExploreState {
             tile_y: 555,
             map: map,
             camera_x: 0.0,
-            camera_y: 0.0
+            camera_y: 0.0,
+            monsters: monsters
         })
 
     }
@@ -75,6 +97,28 @@ impl ExploreState {
                 -self.camera_y * self.tile_scale
             ),)
         )?;
+
+        for monster in &self.monsters {
+
+            let monster_block = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                graphics::Rect {
+                    x: -10.0 * self.tile_scale,
+                    y: -30.0 * self.tile_scale,
+                    w: 20.0 * self.tile_scale,
+                    h: 30.0 * self.tile_scale
+                },
+                graphics::WHITE
+            )?;
+
+            graphics::draw(
+                ctx,
+                &monster_block,
+                (Point2::new((monster.x - self.camera_x) * self.tile_scale + self.tiles_offset, (monster.y - self.camera_y) * self.tile_scale),)
+            )?;
+
+        }
 
         let player = graphics::Mesh::new_rectangle(
             ctx,
