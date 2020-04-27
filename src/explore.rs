@@ -14,15 +14,16 @@ const EXPLORE_SPEED: f32 = 80.0;
 const DIAGONAL_FACTOR: f32 = 0.7071067811865475;
 
 struct Monster {
+    id: u32,
     position: Point2<f32>,
-    in_battle: bool
+    in_battle: bool,
+    ko: bool
 }
 
 pub enum ExploreEvents {
-    MonsterEncounter
+    MonsterEncounter(u32)
 }
 
-// Remove from map on kill
 // On empty map reset all monsters
 // On player death reset all monsters
 // Only draw monsters which are on screen
@@ -68,6 +69,7 @@ impl ExploreState {
         let tile_scale = screen_height / EXPLORE_HEIGHT;
 
         let mut monsters = Vec::new();
+        let mut monster_id = 1;
 
         for row in 0..8 {
             for col in 0..8 {
@@ -76,9 +78,12 @@ impl ExploreState {
                 let rand_x = 200.0 * col + random::<f32>() * 200.0;
                 let rand_y = 200.0 * row + random::<f32>() * 200.0;
                 monsters.push(Monster {
+                    id: monster_id,
                     position: Point2::new(rand_x, rand_y),
-                    in_battle: false
+                    in_battle: false,
+                    ko: false
                 });
+                monster_id += 1;
             }
         }
 
@@ -101,6 +106,21 @@ impl ExploreState {
 
     }
 
+    pub fn notify_monster_down(&mut self, id: u32) {
+
+        for monster in &mut self.monsters {
+            if monster.id == id {
+                monster.ko = true;
+                break;
+            }
+        }
+
+    }
+
+    pub fn notify_battle_end(&mut self) {
+        self.monsters.retain(|m| !m.ko);
+    }
+
     pub fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
         self.tiles.draw(
             ctx,
@@ -121,7 +141,7 @@ impl ExploreState {
                     w: 20.0 * self.tile_scale,
                     h: 30.0 * self.tile_scale
                 },
-                if monster.in_battle { palette::RED } else { graphics::WHITE }
+                if monster.ko { graphics::BLACK } else if monster.in_battle { palette::RED } else { graphics::WHITE }
             )?;
 
             graphics::draw(
@@ -196,7 +216,7 @@ impl ExploreState {
 
                 if dist < 50.0 {
                     monster.in_battle = true;
-                    notify(ExploreEvents::MonsterEncounter);
+                    notify(ExploreEvents::MonsterEncounter(monster.id));
                 }
             }
         }

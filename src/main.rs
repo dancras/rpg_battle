@@ -88,6 +88,10 @@ impl MainState {
             match event {
                 MainEvents::BattleEvent(BattleEvents::End) => {
                     self.battle = None;
+                    self.explore.notify_battle_end();
+                },
+                MainEvents::BattleEvent(BattleEvents::EnemyDown(id)) => {
+                    self.explore.notify_monster_down(id);
                 },
                 MainEvents::BattleEvent(e) => {
                     match &mut self.battle {
@@ -95,13 +99,13 @@ impl MainState {
                         None => {}
                     }
                 },
-                MainEvents::ExploreEvent(ExploreEvents::MonsterEncounter) => {
+                MainEvents::ExploreEvent(ExploreEvents::MonsterEncounter(id)) => {
                     match &mut self.battle {
                         Some(battle) => {
-                            battle.add_enemy();
+                            battle.add_enemy(id);
                         },
                         None => {
-                            self.battle = Some(BattleState::new());
+                            self.battle = Some(BattleState::new(id));
                         }
                     }
                 }

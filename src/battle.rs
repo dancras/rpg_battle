@@ -67,6 +67,7 @@ pub struct Enemy {
 }
 
 pub struct EnemyInBattle {
+    world_id: u32,
     pub stats: Enemy,
     hp_guage: ResourceGuage,
     balance_guage: BalanceGuage,
@@ -75,8 +76,9 @@ pub struct EnemyInBattle {
 }
 
 impl EnemyInBattle {
-    fn new(enemy: Enemy, timeline: &mut ActionTimeline) -> Self {
+    fn new(enemy_id: u32, enemy: Enemy, timeline: &mut ActionTimeline) -> Self {
         EnemyInBattle {
+            world_id: enemy_id,
             hp_guage: ResourceGuage::new(
                 enemy.max_hp as f32,
                 enemy.current_hp as f32,
@@ -191,6 +193,7 @@ impl BattleState {
 
         match event {
             BattleEvents::End => {},
+            BattleEvents::EnemyDown(_) => {},
             BattleEvents::EnemyTakesDamage(i) => {
                 let enemy = &mut self.enemies[*i];
 
@@ -200,6 +203,8 @@ impl BattleState {
                     self.timeline.remove_subject(enemy.timeline_handle);
 
                     self.target_enemy = 0;
+
+                    notify(BattleEvents::EnemyDown(enemy.world_id));
 
                     while self.target_enemy < self.enemies.len() &&
                           self.enemies[self.target_enemy].stats.current_hp == 0 {
@@ -228,7 +233,7 @@ impl BattleState {
         }
     }
 
-    pub fn new() -> Self {
+    pub fn new(enemy_id: u32) -> Self {
         let mut timeline = ActionTimeline::new();
 
         Self {
@@ -262,6 +267,7 @@ impl BattleState {
             players_pending: Vec::new(),
             enemies: vec![
                 EnemyInBattle::new(
+                    enemy_id,
                     Enemy {
                         max_hp: ENEMY_MAX_HP,
                         current_hp: ENEMY_MAX_HP,
@@ -277,8 +283,9 @@ impl BattleState {
         }
     }
 
-    pub fn add_enemy(&mut self) {
+    pub fn add_enemy(&mut self, enemy_id: u32) {
         self.enemies.push(EnemyInBattle::new(
+            enemy_id,
             Enemy {
                 max_hp: ENEMY_MAX_HP,
                 current_hp: ENEMY_MAX_HP,
@@ -390,6 +397,7 @@ impl BattleState {
 pub enum BattleEvents {
     End,
     EnemyTakesDamage(usize),
+    EnemyDown(u32),
     PlayerTakesDamage(usize)
 }
 
