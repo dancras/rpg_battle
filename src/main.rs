@@ -9,7 +9,7 @@ use std::path::{PathBuf};
 use std::env;
 
 use rpg_battle::battle::{BattleState, BattleEvents};
-use rpg_battle::explore::{ExploreState};
+use rpg_battle::explore::{ExploreState, ExploreEvents};
 use rpg_battle::fps_meter::{FpsMeter};
 use rpg_battle::input::{MoveState};
 use rpg_battle::ui::options::{Options};
@@ -20,7 +20,6 @@ const SCREEN_HEIGHT: f32 = 900.0;
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
-// TODO enter battle state by approaching an enemy
 // TODO make important state changes wait for animation (eg end battle)
 // TODO consider remaining_update_time delta in the draw step
 // TODO split battle module into more parts
@@ -40,11 +39,16 @@ struct MainState {
 
 
 enum MainEvents {
-    BattleEvent(BattleEvents)
+    BattleEvent(BattleEvents),
+    ExploreEvent(ExploreEvents)
 }
 
 fn battle_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + FnMut(BattleEvents) {
     move |battle_event| main_events.push(MainEvents::BattleEvent(battle_event))
+}
+
+fn explore_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + FnMut(ExploreEvents) {
+    move |explore_event| main_events.push(MainEvents::ExploreEvent(explore_event))
 }
 
 impl MainState {
@@ -89,6 +93,16 @@ impl MainState {
                     match &mut self.battle {
                         Some(battle) => battle.handle_event(&e, battle_event_notifier(main_events)),
                         None => {}
+                    }
+                },
+                MainEvents::ExploreEvent(ExploreEvents::MonsterEncounter) => {
+                    match &mut self.battle {
+                        Some(battle) => {
+                            battle.add_enemy();
+                        },
+                        None => {
+                            self.battle = Some(BattleState::new());
+                        }
                     }
                 }
             }
@@ -218,7 +232,7 @@ impl event::EventHandler for MainState {
 
             self.randomise_timer += delta;
 
-            self.explore.update(self.move_state.get_move(), delta);
+            self.explore.update(self.move_state.get_move(), delta, explore_event_notifier(&mut self.events));
 
             match &mut self.battle {
                 Some(battle) => {

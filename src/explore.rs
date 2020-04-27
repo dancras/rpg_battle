@@ -6,17 +6,26 @@ use std::path::{PathBuf};
 use tiled_json_rs as tiled;
 
 use crate::input::{Move};
+use crate::palette;
 
 const EXPLORE_WIDTH: f32 = 512.0;
 const EXPLORE_HEIGHT: f32 = 288.0;
 const EXPLORE_SPEED: f32 = 80.0;
 const DIAGONAL_FACTOR: f32 = 0.7071067811865475;
 
-// Position a bunch of monsters
-// Add them to battle on proximity
+struct Monster {
+    position: Point2<f32>,
+    in_battle: bool
+}
+
+pub enum ExploreEvents {
+    MonsterEncounter
+}
+
 // Remove from map on kill
 // On empty map reset all monsters
 // On player death reset all monsters
+// Only draw monsters which are on screen
 pub struct ExploreState {
     tiles: TileSet<u32>,
     tile_scale: f32,
@@ -28,7 +37,7 @@ pub struct ExploreState {
     map: tiled::Map,
     camera_x: f32,
     camera_y: f32,
-    monsters: Vec<Point2<f32>>
+    monsters: Vec<Monster>
 }
 
 impl ExploreState {
@@ -66,7 +75,10 @@ impl ExploreState {
                 let col = col as f32;
                 let rand_x = 200.0 * col + random::<f32>() * 200.0;
                 let rand_y = 200.0 * row + random::<f32>() * 200.0;
-                monsters.push(Point2::new(rand_x, rand_y));
+                monsters.push(Monster {
+                    position: Point2::new(rand_x, rand_y),
+                    in_battle: false
+                });
             }
         }
 
@@ -76,8 +88,8 @@ impl ExploreState {
             tiles: tiles,
             tile_scale: tile_scale,
             tiles_offset: (screen_width - EXPLORE_WIDTH * tile_scale) / 2.0,
-            x: 256.0,
-            y: 144.0,
+            x: 128.0,
+            y: 72.0,
             // Bogus numbers to trigger calculation on first update
             tile_x: 555,
             tile_y: 555,
@@ -109,13 +121,16 @@ impl ExploreState {
                     w: 20.0 * self.tile_scale,
                     h: 30.0 * self.tile_scale
                 },
-                graphics::WHITE
+                if monster.in_battle { palette::RED } else { graphics::WHITE }
             )?;
 
             graphics::draw(
                 ctx,
                 &monster_block,
-                (Point2::new((monster.x - self.camera_x) * self.tile_scale + self.tiles_offset, (monster.y - self.camera_y) * self.tile_scale),)
+                (Point2::new(
+                    (monster.position.x - self.camera_x) * self.tile_scale + self.tiles_offset,
+                    (monster.position.y - self.camera_y) * self.tile_scale
+                ),)
             )?;
 
         }
@@ -141,8 +156,9 @@ impl ExploreState {
         Ok(())
     }
 
-    pub fn update(&mut self, current_move: Move, delta: f32) {
+    pub fn update<F: FnMut(ExploreEvents)>(&mut self, current_move: Move, delta: f32, mut notify: F) {
 
+        // Movement
         let movement = EXPLORE_SPEED * delta;
         let diagonal_movement = movement * DIAGONAL_FACTOR;
 
@@ -170,6 +186,22 @@ impl ExploreState {
             Move::None => {}
         }
 
+        // Monster collision
+        for monster in &mut self.monsters {
+            if !monster.in_battle {
+                let dist_x = (monster.position.x - self.x).abs();
+                let dist_y = (monster.position.y - self.y).abs();
+
+                let dist = ((dist_x * dist_x) + (dist_y * dist_y)).sqrt();
+
+                if dist < 50.0 {
+                    monster.in_battle = true;
+                    notify(ExploreEvents::MonsterEncounter);
+                }
+            }
+        }
+
+        // Manage tiles
         self.camera_x = self.x - EXPLORE_WIDTH / 2.0;
 
         if self.camera_x < 0.0 {

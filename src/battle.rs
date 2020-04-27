@@ -269,30 +269,24 @@ impl BattleState {
                         next_action_time: ENEMY_FIRST_ACTION
                     },
                     &mut timeline
-                ),
-                EnemyInBattle::new(
-                    Enemy {
-                        max_hp: ENEMY_MAX_HP,
-                        current_hp: ENEMY_MAX_HP,
-                        current_balance: calculate_balance(),
-                        next_action_time: ENEMY_FIRST_ACTION
-                    },
-                    &mut timeline
-                ),
-                EnemyInBattle::new(
-                    Enemy {
-                        max_hp: ENEMY_MAX_HP,
-                        current_hp: ENEMY_MAX_HP,
-                        current_balance: calculate_balance(),
-                        next_action_time: ENEMY_FIRST_ACTION
-                    },
-                    &mut timeline
                 )
             ],
             hovered_enemy: None,
             target_enemy: 0,
             timeline: timeline
         }
+    }
+
+    pub fn add_enemy(&mut self) {
+        self.enemies.push(EnemyInBattle::new(
+            Enemy {
+                max_hp: ENEMY_MAX_HP,
+                current_hp: ENEMY_MAX_HP,
+                current_balance: calculate_balance(),
+                next_action_time: ENEMY_FIRST_ACTION
+            },
+            &mut self.timeline
+        ));
     }
 
     fn any_surviving_players(&mut self) -> bool{
