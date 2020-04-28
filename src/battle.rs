@@ -192,7 +192,7 @@ impl BattleState {
     pub fn handle_event<F: FnMut(BattleEvents)>(&mut self, event: &BattleEvents, mut notify: F) {
 
         match event {
-            BattleEvents::End => {},
+            BattleEvents::End(_) => {},
             BattleEvents::EnemyDown(_) => {},
             BattleEvents::EnemyTakesDamage(i) => {
                 let enemy = &mut self.enemies[*i];
@@ -213,7 +213,7 @@ impl BattleState {
                 }
 
                 if self.target_enemy == self.enemies.len() {
-                    notify(BattleEvents::End);
+                    notify(BattleEvents::End(true));
                 }
             },
             BattleEvents::PlayerTakesDamage(i) => {
@@ -226,7 +226,7 @@ impl BattleState {
                     self.timeline.remove_subject(player.timeline_handle);
 
                     if !self.any_surviving_players() {
-                        notify(BattleEvents::End);
+                        notify(BattleEvents::End(false));
                     }
                 }
             }
@@ -395,7 +395,7 @@ impl BattleState {
 }
 
 pub enum BattleEvents {
-    End,
+    End(bool),
     EnemyTakesDamage(usize),
     EnemyDown(u32),
     PlayerTakesDamage(usize)

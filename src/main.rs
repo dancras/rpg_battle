@@ -86,9 +86,14 @@ impl MainState {
             let event = main_events.remove(0);
 
             match event {
-                MainEvents::BattleEvent(BattleEvents::End) => {
+                MainEvents::BattleEvent(BattleEvents::End(victory)) => {
                     self.battle = None;
-                    self.explore.notify_battle_end();
+
+                    if victory {
+                        self.explore.notify_battle_end();
+                    } else {
+                        self.explore.notify_player_defeat();
+                    }
                 },
                 MainEvents::BattleEvent(BattleEvents::EnemyDown(id)) => {
                     self.explore.notify_monster_down(id);

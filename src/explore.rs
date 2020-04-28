@@ -31,14 +31,51 @@ pub struct ExploreState {
     tiles: TileSet<u32>,
     tile_scale: f32,
     tiles_offset: f32,
-    x: f32,
-    y: f32,
     tile_x: i32,
     tile_y: i32,
     map: tiled::Map,
     camera_x: f32,
     camera_y: f32,
+    scene: SceneState
+}
+
+struct SceneState {
+    x: f32,
+    y: f32,
     monsters: Vec<Monster>
+}
+
+impl SceneState {
+    fn new() -> Self {
+
+        let mut monsters = Vec::new();
+        let mut monster_id = 1;
+
+        for row in 0..8 {
+            for col in 0..8 {
+                let row = row as f32;
+                let col = col as f32;
+                let rand_x = 200.0 * col + random::<f32>() * 200.0;
+                let rand_y = 200.0 * row + random::<f32>() * 200.0;
+                monsters.push(Monster {
+                    id: monster_id,
+                    position: Point2::new(rand_x, rand_y),
+                    in_battle: false,
+                    ko: false
+                });
+                monster_id += 1;
+            }
+        }
+
+        monsters.remove(0);
+
+        Self {
+            monsters: monsters,
+            x: 128.0,
+            y: 72.0,
+        }
+
+    }
 }
 
 impl ExploreState {
@@ -68,47 +105,24 @@ impl ExploreState {
 
         let tile_scale = screen_height / EXPLORE_HEIGHT;
 
-        let mut monsters = Vec::new();
-        let mut monster_id = 1;
-
-        for row in 0..8 {
-            for col in 0..8 {
-                let row = row as f32;
-                let col = col as f32;
-                let rand_x = 200.0 * col + random::<f32>() * 200.0;
-                let rand_y = 200.0 * row + random::<f32>() * 200.0;
-                monsters.push(Monster {
-                    id: monster_id,
-                    position: Point2::new(rand_x, rand_y),
-                    in_battle: false,
-                    ko: false
-                });
-                monster_id += 1;
-            }
-        }
-
-        monsters.remove(0);
-
         Ok(Self {
             tiles: tiles,
             tile_scale: tile_scale,
             tiles_offset: (screen_width - EXPLORE_WIDTH * tile_scale) / 2.0,
-            x: 128.0,
-            y: 72.0,
             // Bogus numbers to trigger calculation on first update
             tile_x: 555,
             tile_y: 555,
             map: map,
             camera_x: 0.0,
             camera_y: 0.0,
-            monsters: monsters
+            scene: SceneState::new()
         })
 
     }
 
     pub fn notify_monster_down(&mut self, id: u32) {
 
-        for monster in &mut self.monsters {
+        for monster in &mut self.scene.monsters {
             if monster.id == id {
                 monster.ko = true;
                 break;
@@ -118,7 +132,11 @@ impl ExploreState {
     }
 
     pub fn notify_battle_end(&mut self) {
-        self.monsters.retain(|m| !m.ko);
+        self.scene.monsters.retain(|m| !m.ko);
+    }
+
+    pub fn notify_player_defeat(&mut self) {
+        self.scene = SceneState::new();
     }
 
     pub fn draw(&mut self, ctx: &mut ggez::Context) -> ggez::GameResult {
@@ -130,7 +148,7 @@ impl ExploreState {
             ),)
         )?;
 
-        for monster in &self.monsters {
+        for monster in &self.scene.monsters {
 
             let monster_block = graphics::Mesh::new_rectangle(
                 ctx,
@@ -170,7 +188,7 @@ impl ExploreState {
         graphics::draw(
             ctx,
             &player,
-            (Point2::new((self.x - self.camera_x) * self.tile_scale + self.tiles_offset, (self.y - self.camera_y) * self.tile_scale),)
+            (Point2::new((self.scene.x - self.camera_x) * self.tile_scale + self.tiles_offset, (self.scene.y - self.camera_y) * self.tile_scale),)
         )?;
 
         Ok(())
@@ -183,34 +201,34 @@ impl ExploreState {
         let diagonal_movement = movement * DIAGONAL_FACTOR;
 
         match current_move {
-            Move::Up => self.y -= movement,
+            Move::Up => self.scene.y -= movement,
             Move::UpRight => {
-                self.y -= diagonal_movement;
-                self.x += diagonal_movement;
+                self.scene.y -= diagonal_movement;
+                self.scene.x += diagonal_movement;
             },
-            Move::Right => self.x += movement,
+            Move::Right => self.scene.x += movement,
             Move::DownRight => {
-                self.y += diagonal_movement;
-                self.x += diagonal_movement;
+                self.scene.y += diagonal_movement;
+                self.scene.x += diagonal_movement;
             },
-            Move::Down => self.y += movement,
+            Move::Down => self.scene.y += movement,
             Move::DownLeft => {
-                self.y += diagonal_movement;
-                self.x -= diagonal_movement;
+                self.scene.y += diagonal_movement;
+                self.scene.x -= diagonal_movement;
             },
-            Move::Left => self.x -= movement,
+            Move::Left => self.scene.x -= movement,
             Move::UpLeft => {
-                self.y -= diagonal_movement;
-                self.x -= diagonal_movement;
+                self.scene.y -= diagonal_movement;
+                self.scene.x -= diagonal_movement;
             },
             Move::None => {}
         }
 
         // Monster collision
-        for monster in &mut self.monsters {
+        for monster in &mut self.scene.monsters {
             if !monster.in_battle {
-                let dist_x = (monster.position.x - self.x).abs();
-                let dist_y = (monster.position.y - self.y).abs();
+                let dist_x = (monster.position.x - self.scene.x).abs();
+                let dist_y = (monster.position.y - self.scene.y).abs();
 
                 let dist = ((dist_x * dist_x) + (dist_y * dist_y)).sqrt();
 
@@ -222,13 +240,13 @@ impl ExploreState {
         }
 
         // Manage tiles
-        self.camera_x = self.x - EXPLORE_WIDTH / 2.0;
+        self.camera_x = self.scene.x - EXPLORE_WIDTH / 2.0;
 
         if self.camera_x < 0.0 {
             self.camera_x = 0.0;
         }
 
-        self.camera_y = self.y - EXPLORE_HEIGHT / 2.0;
+        self.camera_y = self.scene.y - EXPLORE_HEIGHT / 2.0;
 
         if self.camera_y < 0.0 {
             self.camera_y = 0.0;
