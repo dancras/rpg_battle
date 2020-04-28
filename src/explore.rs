@@ -24,8 +24,6 @@ pub enum ExploreEvents {
     MonsterEncounter(u32)
 }
 
-// On empty map reset all monsters
-// On player death reset all monsters
 // Only draw monsters which are on screen
 pub struct ExploreState {
     tiles: TileSet<u32>,
@@ -133,6 +131,10 @@ impl ExploreState {
 
     pub fn notify_battle_end(&mut self) {
         self.scene.monsters.retain(|m| !m.ko);
+
+        if self.scene.monsters.len() == 0 {
+            self.scene = SceneState::new();
+        }
     }
 
     pub fn notify_player_defeat(&mut self) {
