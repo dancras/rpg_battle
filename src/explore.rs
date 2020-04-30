@@ -7,13 +7,13 @@ use std::path::{PathBuf};
 use tiled_json_rs as tiled;
 
 use crate::input::{Move};
-use crate::palette;
 
 const EXPLORE_WIDTH: f32 = 512.0;
 const EXPLORE_HEIGHT: f32 = 288.0;
 const EXPLORE_SPEED: f32 = 80.0;
 const DIAGONAL_FACTOR: f32 = 0.7071067811865475;
 const PLAYER_ANIMATION_FPS: f32 = 10.0;
+const MONSTER_ANIMATION_FPS: f32 = 10.0;
 
 struct Monster {
     id: u32,
@@ -37,7 +37,6 @@ enum Facing {
 // Draw world in layers including player character
 //  Don't worry about player behind world objects,
 //  it adds nothing to gameplay
-// Use same sprite system for monsters
 pub struct ExploreState {
     tiles: TileSet<u32>,
     tile_scale: f32,
@@ -51,6 +50,8 @@ pub struct ExploreState {
     player_sprite: graphics::Image,
     player_frame_timer: f32,
     player_facing: Facing,
+    monster_sprite: graphics::Image,
+    monster_frame_timer: f32
 }
 
 struct SceneState {
@@ -132,7 +133,9 @@ impl ExploreState {
             scene: SceneState::new(),
             player_sprite: graphics::Image::new(ctx, "/lidia_spritesheet_fix.png")?,
             player_frame_timer: 0.0,
-            player_facing: Facing::Down
+            player_facing: Facing::Down,
+            monster_sprite: graphics::Image::new(ctx, "/beetle_move_attack.png")?,
+            monster_frame_timer: 0.0,
         })
 
     }
@@ -171,33 +174,33 @@ impl ExploreState {
 
         for monster in &self.scene.monsters {
 
-            if monster.position.x < self.camera_x - 10.0 ||
-                monster.position.x > self.camera_x + EXPLORE_WIDTH + 10.0 ||
+            if monster.position.x < self.camera_x - 16.0 ||
+                monster.position.x > self.camera_x + EXPLORE_WIDTH + 16.0 ||
                 monster.position.y < self.camera_y ||
-                monster.position.y > self.camera_y + EXPLORE_HEIGHT + 30.0
+                monster.position.y > self.camera_y + EXPLORE_HEIGHT + 32.0
             {
                 continue;
             }
 
-            let monster_block = graphics::Mesh::new_rectangle(
-                ctx,
-                graphics::DrawMode::fill(),
-                graphics::Rect {
-                    x: -10.0 * self.tile_scale,
-                    y: -30.0 * self.tile_scale,
-                    w: 20.0 * self.tile_scale,
-                    h: 30.0 * self.tile_scale
-                },
-                if monster.ko { graphics::BLACK } else if monster.in_battle { palette::RED } else { graphics::WHITE }
-            )?;
+            let monster_frame = (self.monster_frame_timer * MONSTER_ANIMATION_FPS % 4.0) as i8;
 
             graphics::draw(
                 ctx,
-                &monster_block,
-                (Point2::new(
-                    (monster.position.x - self.camera_x) * self.tile_scale + self.tiles_offset,
-                    (monster.position.y - self.camera_y) * self.tile_scale
-                ),)
+                &self.monster_sprite,
+                DrawParam {
+                    src: graphics::Rect {
+                        x: monster_frame as f32 / 10.0,
+                        y: 0.5,
+                        w: 1.0 / 10.0,
+                        h: 0.25
+                    },
+                    dest: [
+                        (monster.position.x - self.camera_x - 16.0) * self.tile_scale + self.tiles_offset,
+                        (monster.position.y - self.camera_y - 32.0) * self.tile_scale
+                    ].into(),
+                    scale: [self.tile_scale, self.tile_scale].into(),
+                    ..Default::default()
+                }
             )?;
 
         }
@@ -292,6 +295,9 @@ impl ExploreState {
                 }
             }
         }
+
+        // Monster animation
+        self.monster_frame_timer += delta;
 
         // Manage tiles
         self.camera_x = self.scene.x - EXPLORE_WIDTH / 2.0;
