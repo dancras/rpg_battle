@@ -1,4 +1,5 @@
-use ggez::{self, graphics};
+use ggez;
+use ggez::graphics::{self, DrawParam};
 use nalgebra::{Point2};
 use patchwork::{TileSet, TileParams};
 use rand::{random};
@@ -12,6 +13,7 @@ const EXPLORE_WIDTH: f32 = 512.0;
 const EXPLORE_HEIGHT: f32 = 288.0;
 const EXPLORE_SPEED: f32 = 80.0;
 const DIAGONAL_FACTOR: f32 = 0.7071067811865475;
+const PLAYER_ANIMATION_FPS: f32 = 10.0;
 
 struct Monster {
     id: u32,
@@ -24,6 +26,18 @@ pub enum ExploreEvents {
     MonsterEncounter(u32)
 }
 
+enum Facing {
+    Up,
+    Right,
+    Down,
+    Left
+}
+
+// Create something to dynamically pack resources into a spritebatch texture
+// Draw world in layers including player character
+//  Don't worry about player behind world objects,
+//  it adds nothing to gameplay
+// Use same sprite system for monsters
 // Only draw monsters which are on screen
 pub struct ExploreState {
     tiles: TileSet<u32>,
@@ -34,7 +48,10 @@ pub struct ExploreState {
     map: tiled::Map,
     camera_x: f32,
     camera_y: f32,
-    scene: SceneState
+    scene: SceneState,
+    player_sprite: graphics::Image,
+    player_frame_timer: f32,
+    player_facing: Facing,
 }
 
 struct SceneState {
@@ -70,7 +87,7 @@ impl SceneState {
         Self {
             monsters: monsters,
             x: 128.0,
-            y: 72.0,
+            y: 128.0,
         }
 
     }
@@ -113,7 +130,10 @@ impl ExploreState {
             map: map,
             camera_x: 0.0,
             camera_y: 0.0,
-            scene: SceneState::new()
+            scene: SceneState::new(),
+            player_sprite: graphics::Image::new(ctx, "/lidia_spritesheet_fix.png")?,
+            player_frame_timer: 0.0,
+            player_facing: Facing::Down
         })
 
     }
@@ -175,22 +195,29 @@ impl ExploreState {
 
         }
 
-        let player = graphics::Mesh::new_rectangle(
-            ctx,
-            graphics::DrawMode::fill(),
-            graphics::Rect {
-                x: -13.0 * self.tile_scale,
-                y: -46.0 * self.tile_scale,
-                w: 26.0 * self.tile_scale,
-                h: 46.0 * self.tile_scale
-            },
-            graphics::BLACK
-        )?;
+        let player_sprite_y_offset = match self.player_facing {
+            Facing::Up => 0.0,
+            Facing::Right => 0.75,
+            Facing::Down => 0.5,
+            Facing::Left => 0.25
+        };
+
+        let player_frame = (self.player_frame_timer * PLAYER_ANIMATION_FPS % 9.0) as i8;
 
         graphics::draw(
             ctx,
-            &player,
-            (Point2::new((self.scene.x - self.camera_x) * self.tile_scale + self.tiles_offset, (self.scene.y - self.camera_y) * self.tile_scale),)
+            &self.player_sprite,
+            DrawParam {
+                src: graphics::Rect {
+                    x: player_frame as f32 / 9.0,
+                    y: player_sprite_y_offset,
+                    w: 1.0 / 9.0,
+                    h: 0.25
+                },
+                dest: [(self.scene.x - self.camera_x - 32.0) * self.tile_scale + self.tiles_offset, (self.scene.y - self.camera_y - 64.0) * self.tile_scale].into(),
+                scale: [self.tile_scale, self.tile_scale].into(),
+                ..Default::default()
+            }
         )?;
 
         Ok(())
@@ -203,28 +230,46 @@ impl ExploreState {
         let diagonal_movement = movement * DIAGONAL_FACTOR;
 
         match current_move {
-            Move::Up => self.scene.y -= movement,
+            Move::Up => {
+                self.scene.y -= movement;
+                self.player_facing = Facing::Up;
+            }
             Move::UpRight => {
                 self.scene.y -= diagonal_movement;
                 self.scene.x += diagonal_movement;
             },
-            Move::Right => self.scene.x += movement,
+            Move::Right => {
+                self.scene.x += movement;
+                self.player_facing = Facing::Right;
+            }
             Move::DownRight => {
                 self.scene.y += diagonal_movement;
                 self.scene.x += diagonal_movement;
             },
-            Move::Down => self.scene.y += movement,
+            Move::Down => {
+                self.scene.y += movement;
+                self.player_facing = Facing::Down;
+            },
             Move::DownLeft => {
                 self.scene.y += diagonal_movement;
                 self.scene.x -= diagonal_movement;
             },
-            Move::Left => self.scene.x -= movement,
+            Move::Left => {
+                self.scene.x -= movement;
+                self.player_facing = Facing::Left
+            },
             Move::UpLeft => {
                 self.scene.y -= diagonal_movement;
                 self.scene.x -= diagonal_movement;
             },
             Move::None => {}
         }
+
+        // Player animation
+        match current_move {
+            Move::None => self.player_frame_timer = 0.0,
+            _ => self.player_frame_timer += delta
+        };
 
         // Monster collision
         for monster in &mut self.scene.monsters {
