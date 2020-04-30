@@ -38,7 +38,6 @@ enum Facing {
 //  Don't worry about player behind world objects,
 //  it adds nothing to gameplay
 // Use same sprite system for monsters
-// Only draw monsters which are on screen
 pub struct ExploreState {
     tiles: TileSet<u32>,
     tile_scale: f32,
@@ -171,6 +170,14 @@ impl ExploreState {
         )?;
 
         for monster in &self.scene.monsters {
+
+            if monster.position.x < self.camera_x - 10.0 ||
+                monster.position.x > self.camera_x + EXPLORE_WIDTH + 10.0 ||
+                monster.position.y < self.camera_y ||
+                monster.position.y > self.camera_y + EXPLORE_HEIGHT + 30.0
+            {
+                continue;
+            }
 
             let monster_block = graphics::Mesh::new_rectangle(
                 ctx,
