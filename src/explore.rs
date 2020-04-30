@@ -278,7 +278,13 @@ impl ExploreState {
         // Player animation
         match current_move {
             Move::None => self.player_frame_timer = 0.0,
-            _ => self.player_frame_timer += delta
+            _ => {
+                self.player_frame_timer += if self.player_frame_timer == 0.0 {
+                    1.0 / PLAYER_ANIMATION_FPS
+                } else {
+                    delta
+                }
+            }
         };
 
         // Monster collision
