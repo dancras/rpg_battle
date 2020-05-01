@@ -39,6 +39,7 @@ enum Facing {
 //  it adds nothing to gameplay
 pub struct ExploreState {
     tiles: TileSet<u32>,
+    foreground_tiles: TileSet<u32>,
     tile_scale: f32,
     tiles_offset: f32,
     tile_x: i32,
@@ -107,12 +108,15 @@ impl ExploreState {
 
         let tileset_image = graphics::Image::new(ctx, format!("/{}", tile_set_filename))?;
 
-        let mut tiles: TileSet<u32> = TileSet::new(tileset_image, [32, 32]);
+        let mut tiles: TileSet<u32> = TileSet::new(tileset_image.clone(), [32, 32]);
+        let mut foreground_tiles: TileSet<u32> = TileSet::new(tileset_image.clone(), [32, 32]);
 
         let mut tile_id = 1;
         for row in 0..16 {
             for col in 0..16 {
                 tiles.register_tile(tile_id, [col, row])
+                    .expect("Failed to register tile");
+                foreground_tiles.register_tile(tile_id, [col, row])
                     .expect("Failed to register tile");
                 tile_id += 1;
             }
@@ -122,6 +126,7 @@ impl ExploreState {
 
         Ok(Self {
             tiles: tiles,
+            foreground_tiles: foreground_tiles,
             tile_scale: tile_scale,
             tiles_offset: (screen_width - EXPLORE_WIDTH * tile_scale) / 2.0,
             // Bogus numbers to trigger calculation on first update
@@ -228,6 +233,14 @@ impl ExploreState {
                 scale: [self.tile_scale, self.tile_scale].into(),
                 ..Default::default()
             }
+        )?;
+
+        self.foreground_tiles.draw(
+            ctx,
+            (Point2::new(
+                self.tiles_offset - self.camera_x * self.tile_scale,
+                -self.camera_y * self.tile_scale
+            ),)
         )?;
 
         Ok(())
@@ -362,6 +375,32 @@ impl ExploreState {
             }
         }
 
+        // Manage foreground tiles
+        let player_tile_x = self.scene.x as i32 / 32;
+        let player_tile_y = self.scene.y as i32 / 32;
+
+        self.foreground_tiles.clear_queue();
+
+        for layer in &self.map.layers[1..] {
+            match &layer.layer_type {
+                tiled::LayerType::TileLayer(layer_tiles) => {
+                    let i = player_tile_y * 50 + player_tile_x;
+                    let tile = layer_tiles.data[i as usize];
+
+                    if tile > 0 {
+                        self.foreground_tiles.queue_tile::<_, TileParams>(
+                            tile as u32,
+                            [player_tile_x, player_tile_y],
+                            Some(TileParams {
+                                color: None,
+                                scale: Some([self.tile_scale, self.tile_scale].into())
+                            })
+                        ).expect("Failed to queue tile");
+                    }
+                },
+                _ => {}
+            }
+        }
 
     }
 }
