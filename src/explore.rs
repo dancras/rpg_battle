@@ -384,18 +384,29 @@ impl ExploreState {
         for layer in &self.map.layers[1..] {
             match &layer.layer_type {
                 tiled::LayerType::TileLayer(layer_tiles) => {
-                    let i = player_tile_y * 50 + player_tile_x;
-                    let tile = layer_tiles.data[i as usize];
 
-                    if tile > 0 {
-                        self.foreground_tiles.queue_tile::<_, TileParams>(
-                            tile as u32,
-                            [player_tile_x, player_tile_y],
-                            Some(TileParams {
-                                color: None,
-                                scale: Some([self.tile_scale, self.tile_scale].into())
-                            })
-                        ).expect("Failed to queue tile");
+                    if queue_foreground_tile_column(
+                        &mut self.foreground_tiles,
+                        &layer_tiles,
+                        player_tile_x,
+                        player_tile_y,
+                        self.tile_scale
+                    ) {
+                        queue_foreground_tile_column(
+                            &mut self.foreground_tiles,
+                            &layer_tiles,
+                            player_tile_x - 1,
+                            player_tile_y,
+                            self.tile_scale
+                        );
+
+                        queue_foreground_tile_column(
+                            &mut self.foreground_tiles,
+                            &layer_tiles,
+                            player_tile_x + 1,
+                            player_tile_y,
+                            self.tile_scale
+                        );
                     }
                 },
                 _ => {}
@@ -403,6 +414,75 @@ impl ExploreState {
         }
 
     }
+}
+
+fn queue_foreground_tile_column(
+    tile_set: &mut TileSet<u32>,
+    tile_layer: &tiled::TileLayer,
+    tile_x: i32,
+    tile_y: i32,
+    tile_scale: f32
+) -> bool {
+
+    if queue_tile_if_available(
+        tile_set,
+        tile_layer,
+        tile_x,
+        tile_y,
+        tile_scale
+    ) {
+        queue_tile_if_available(
+            tile_set,
+            tile_layer,
+            tile_x,
+            tile_y - 1,
+            tile_scale
+        );
+
+        queue_tile_if_available(
+            tile_set,
+            tile_layer,
+            tile_x,
+            tile_y - 2,
+            tile_scale
+        );
+
+        true
+    } else {
+        false
+    }
+}
+
+fn queue_tile_if_available(
+    tile_set: &mut TileSet<u32>,
+    tile_layer: &tiled::TileLayer,
+    tile_x: i32,
+    tile_y: i32,
+    tile_scale: f32
+) -> bool {
+
+    let i = tile_y * 50 + tile_x;
+
+    if i < 0 {
+        return false;
+    }
+
+    let tile = tile_layer.data[i as usize];
+
+    if tile > 0 {
+        tile_set.queue_tile::<_, TileParams>(
+            tile as u32,
+            [tile_x, tile_y],
+            Some(TileParams {
+                color: None,
+                scale: Some([tile_scale, tile_scale].into())
+            })
+        ).expect("Failed to queue tile");
+        true
+    } else {
+        false
+    }
+
 }
 
 
