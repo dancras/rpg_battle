@@ -20,6 +20,7 @@ const SCREEN_HEIGHT: f32 = 900.0;
 const DESIRED_FPS: u32 = 60;
 const RANDOMISE_INTERVAL: f32 = 2.0;
 
+// TODO move all UI into single draw step with spritebatch
 // TODO make important state changes wait for animation (eg end battle)
 // TODO consider remaining_update_time delta in the draw step
 // TODO split battle module into more parts
@@ -50,6 +51,21 @@ fn battle_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + 
 fn explore_event_notifier<'a>(main_events: &'a mut Vec<MainEvents>) -> impl 'a + FnMut(ExploreEvents) {
     move |explore_event| main_events.push(MainEvents::ExploreEvent(explore_event))
 }
+
+// idea
+// load image 50x60
+// add image 100x100
+// total dims 150x160
+// split rgba vec of first at 50*4, and second by 100x4
+// add 40 blank rows to the first
+// zip them together
+
+// let left_image = graphics::Image::new(ctx, "/mountain_landscape_23.png")?;
+// let right_image = graphics::Image::new(ctx, "/lidia_spritesheet_fix.png")?;
+
+// let combined_width = std::cmp::max(left_image.width(), right_image.width());
+// let combined_height = std::cmp::max(left_image.height(), right_image.height());
+
 
 impl MainState {
     fn new(ctx: &mut ggez::Context) -> ggez::GameResult<MainState> {
